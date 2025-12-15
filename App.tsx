@@ -46,10 +46,10 @@ export default function App() {
           .order('added_at', { ascending: false });
 
         if (error) {
+           // Log the specific error message for debugging
+           console.warn('Supabase fetch error (using mock data):', error.message);
            // Fallback to mock data if table doesn't exist yet or connection fails
-           console.error('Error fetching songs:', error);
-           // Only load mock data if we really have nothing
-           if (myLibrary.length === 0) setMyLibrary(MOCK_SONGS);
+           setMyLibrary(MOCK_SONGS);
         } else if (data) {
            // Map snake_case DB columns to camelCase types if necessary
            // Assuming DB columns: id, title, artist, album, cover_url, audio_url, lyrics_url, added_at, description
@@ -64,10 +64,13 @@ export default function App() {
              addedAt: item.added_at || item.addedAt,
              description: item.description
            }));
+           // If DB is empty, use mock songs? Optional decision. 
+           // For now, if data is valid but empty, we show empty library. 
+           // Only error triggers Mocks.
            setMyLibrary(mappedSongs);
         }
       } catch (err) {
-        console.error("Unexpected error fetching songs", err);
+        console.error("Unexpected error fetching songs:", err);
         setMyLibrary(MOCK_SONGS);
       } finally {
         setIsLoading(false);
@@ -98,7 +101,7 @@ export default function App() {
         const { error } = await supabase.from('songs').insert([dbSong]);
 
         if (error) {
-            console.error("Error adding song to Supabase:", error);
+            console.error("Error adding song to Supabase:", error.message);
             alert("Failed to save song to cloud. " + error.message);
         } else {
             // Update local state immediately for UI responsiveness
