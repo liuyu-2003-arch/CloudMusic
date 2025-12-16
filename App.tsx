@@ -65,7 +65,7 @@ export default function App() {
         if (error) {
            console.warn('Supabase fetch error (using mock data):', error.message);
            setMyLibrary(MOCK_SONGS);
-        } else if (data) {
+        } else if (data && data.length > 0) {
            const mappedSongs: Song[] = data.map((item: any) => ({
              id: item.id,
              title: item.title,
@@ -78,6 +78,9 @@ export default function App() {
              description: item.description
            }));
            setMyLibrary(mappedSongs);
+        } else {
+           // Fallback if data is empty (e.g. table just created)
+           setMyLibrary(MOCK_SONGS);
         }
       } catch (err) {
         console.error("Unexpected error fetching songs:", err);
@@ -109,12 +112,16 @@ export default function App() {
 
         if (error) {
             console.error("Error adding song to Supabase:", error.message);
-            alert("Failed to save song to cloud. " + error.message);
+            // Fallback: Update local state anyway so the user sees their song
+            setMyLibrary(prev => [song, ...prev]);
+            alert(`Song added to local session only.\n\nCloud Save Failed: ${error.message}\n\nTip: If you are the developer, run the SQL in schema.sql in your Supabase dashboard.`);
         } else {
             setMyLibrary(prev => [song, ...prev]);
         }
     } catch (e) {
         console.error("Exception adding song:", e);
+        // Fallback for exceptions
+        setMyLibrary(prev => [song, ...prev]);
     }
   };
 
