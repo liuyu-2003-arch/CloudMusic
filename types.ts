@@ -19,7 +19,8 @@ export interface PlayerState {
 }
 
 export enum View {
-  HOME = 'HOME',
-  LIBRARY = 'LIBRARY',
-  SEARCH = 'SEARCH'
+  RECENTLY_ADDED = 'RECENTLY_ADDED',
+  ARTISTS = 'ARTISTS',
+  ALBUMS = 'ALBUMS',
+  SONGS = 'SONGS'
 }

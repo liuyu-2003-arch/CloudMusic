@@ -6,16 +6,20 @@ import AddMusicModal from './components/AddMusicModal';
 import LoginModal from './components/LoginModal';
 import { MOCK_SONGS } from './constants';
 import { Song, View } from './types';
-import { Bell, LogIn, LogOut, ChevronDown, Plus, Edit3, Settings } from 'lucide-react';
+import { Bell, LogIn, LogOut, ChevronDown, Plus, Edit3, Settings, ArrowLeft } from 'lucide-react';
 import { supabase, isUserAdmin } from './services/supabaseClient';
 
 export default function App() {
-  const [activeView, setActiveView] = useState<View>(View.HOME);
+  const [activeView, setActiveView] = useState<View>(View.SONGS);
   const [myLibrary, setMyLibrary] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   
+  // Navigation State for Artists/Albums drill-down
+  const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<string | null>(null);
+
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -154,9 +158,111 @@ export default function App() {
     }
   };
 
-  const recentSongs = myLibrary.slice(0, 4);
-  const soundtrackSongs = myLibrary.filter(s => s.album?.toLowerCase().includes('soundtrack') || s.album?.toLowerCase().includes('score'));
-  const otherSongs = myLibrary.filter(s => !recentSongs.includes(s) && !soundtrackSongs.includes(s));
+  const handleViewChange = (view: View) => {
+      setActiveView(view);
+      // Reset drill-down selections when changing main view
+      setSelectedArtist(null);
+      setSelectedAlbum(null);
+  };
+
+  // --- View Logic ---
+
+  const getDisplayedContent = () => {
+      if (activeView === View.SONGS) {
+          return <MusicGrid title="Songs" songs={myLibrary} onPlay={handlePlay} />;
+      }
+      
+      if (activeView === View.RECENTLY_ADDED) {
+          const sorted = [...myLibrary].sort((a, b) => b.addedAt - a.addedAt);
+          return <MusicGrid title="Recently Added" songs={sorted} onPlay={handlePlay} />;
+      }
+
+      if (activeView === View.ARTISTS) {
+          if (selectedArtist) {
+              const artistSongs = myLibrary.filter(s => s.artist === selectedArtist);
+              return (
+                  <div>
+                      <div className="flex items-center mb-6">
+                        <button onClick={() => setSelectedArtist(null)} className="mr-4 p-2 hover:bg-gray-200 rounded-full transition-colors">
+                            <ArrowLeft size={24} className="text-apple-accent" />
+                        </button>
+                        <h2 className="text-3xl font-bold text-gray-900">{selectedArtist}</h2>
+                      </div>
+                      <MusicGrid title="Songs" songs={artistSongs} onPlay={handlePlay} />
+                  </div>
+              );
+          } else {
+              // Group by Artist
+              const artistsMap = new Map<string, Song>();
+              myLibrary.forEach(song => {
+                  if (!artistsMap.has(song.artist)) {
+                      artistsMap.set(song.artist, song);
+                  }
+              });
+              
+              // Convert to "Song-like" objects for the grid
+              const artistItems = Array.from(artistsMap.values()).map(song => ({
+                  ...song,
+                  id: song.artist, // Use artist name as ID
+                  title: song.artist,
+                  artist: 'Artist',
+                  description: 'Artist'
+              }));
+
+              return (
+                <MusicGrid 
+                    title="Artists" 
+                    songs={artistItems} 
+                    onPlay={(item) => setSelectedArtist(item.title)} 
+                />
+              );
+          }
+      }
+
+      if (activeView === View.ALBUMS) {
+        if (selectedAlbum) {
+            const albumSongs = myLibrary.filter(s => s.album === selectedAlbum);
+            return (
+                <div>
+                    <div className="flex items-center mb-6">
+                      <button onClick={() => setSelectedAlbum(null)} className="mr-4 p-2 hover:bg-gray-200 rounded-full transition-colors">
+                          <ArrowLeft size={24} className="text-apple-accent" />
+                      </button>
+                      <h2 className="text-3xl font-bold text-gray-900">{selectedAlbum}</h2>
+                    </div>
+                    <MusicGrid title="Songs" songs={albumSongs} onPlay={handlePlay} />
+                </div>
+            );
+        } else {
+            // Group by Album
+            const albumsMap = new Map<string, Song>();
+            myLibrary.forEach(song => {
+                if (!albumsMap.has(song.album)) {
+                    albumsMap.set(song.album, song);
+                }
+            });
+            
+            // Convert to "Song-like" objects for the grid
+            const albumItems = Array.from(albumsMap.values()).map(song => ({
+                ...song,
+                id: song.album, // Use album name as ID
+                title: song.album,
+                artist: song.artist,
+                description: 'Album'
+            }));
+
+            return (
+              <MusicGrid 
+                  title="Albums" 
+                  songs={albumItems} 
+                  onPlay={(item) => setSelectedAlbum(item.title)} 
+              />
+            );
+        }
+    }
+
+      return null;
+  };
 
   const isAdmin = isUserAdmin(user?.email);
 
@@ -165,7 +271,7 @@ export default function App() {
       
       {/* Sidebar */}
       <aside className="hidden md:block w-[260px] flex-shrink-0 z-20">
-        <Sidebar activeView={activeView} onChangeView={setActiveView} />
+        <Sidebar activeView={activeView} onChangeView={handleViewChange} />
       </aside>
 
       {/* Main Content */}
@@ -263,51 +369,18 @@ export default function App() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-apple-accent"></div>
              </div>
           ) : (
-            <>
-                {activeView === View.HOME && (
-                    <div className="max-w-[1600px] mx-auto space-y-2">
-                    
-                    {/* Hero Banner */}
-                    <div className="mb-12 bg-gradient-to-r from-red-500 to-orange-400 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
-                        <div className="relative z-10 max-w-lg">
-                            <h1 className="text-3xl font-bold mb-2">Listen Now</h1>
-                            <p className="opacity-90">Top picks for you. Updated daily.</p>
-                            {!user && (
-                                <button onClick={() => setIsLoginModalOpen(true)} className="mt-4 bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                                    Sign in to Sync
-                                </button>
-                            )}
-                        </div>
-                        <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-white/10 skew-x-12 transform translate-x-20"></div>
+            <div className="max-w-[1600px] mx-auto min-h-full">
+                {myLibrary.length === 0 ? (
+                    <div className="text-center py-20">
+                        <p className="text-gray-400 text-lg">Your library is empty.</p>
+                        {isAdmin && (
+                            <button onClick={() => setIsAddModalOpen(true)} className="text-apple-accent hover:underline mt-2">Add some music</button>
+                        )}
                     </div>
-
-                    <MusicGrid title="Recently Played" songs={recentSongs} onPlay={handlePlay} />
-                    
-                    {soundtrackSongs.length > 0 && (
-                        <MusicGrid title="Soundtracks" songs={soundtrackSongs} onPlay={handlePlay} />
-                    )}
-
-                    {otherSongs.length > 0 && (
-                        <MusicGrid title="Your Collection" songs={otherSongs} onPlay={handlePlay} />
-                    )}
-
-                    {myLibrary.length === 0 && (
-                        <div className="text-center py-20">
-                            <p className="text-gray-400 text-lg">Your library is empty.</p>
-                            {isAdmin && (
-                                <button onClick={() => setIsAddModalOpen(true)} className="text-apple-accent hover:underline mt-2">Add some music</button>
-                            )}
-                        </div>
-                    )}
-                    </div>
+                ) : (
+                    getDisplayedContent()
                 )}
-
-                {activeView === View.LIBRARY && (
-                    <div className="max-w-[1600px] mx-auto">
-                        <MusicGrid title="All Songs" songs={myLibrary} onPlay={handlePlay} />
-                    </div>
-                )}
-            </>
+            </div>
           )}
 
         </div>

@@ -1,6 +1,6 @@
 import React from 'react';
-import { PlayCircle, LayoutGrid, Radio, Clock, Mic2, Disc, Music, Search } from 'lucide-react';
-import { NAV_ITEMS, LIBRARY_ITEMS } from '../constants';
+import { Clock, Mic2, Disc, Music, Search } from 'lucide-react';
+import { LIBRARY_ITEMS } from '../constants';
 import { View } from '../types';
 
 interface SidebarProps {
@@ -13,15 +13,26 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, className =
   
   const renderIcon = (name: string) => {
     switch(name) {
-      case 'PlayCircle': return <PlayCircle size={20} />;
-      case 'LayoutGrid': return <LayoutGrid size={20} />;
-      case 'Radio': return <Radio size={20} />;
       case 'Clock': return <Clock size={20} />;
       case 'Mic2': return <Mic2 size={20} />;
       case 'Disc': return <Disc size={20} />;
       case 'Music': return <Music size={20} />;
       default: return <Music size={20} />;
     }
+  };
+
+  const getTargetView = (id: string): View => {
+      switch(id) {
+          case 'recently_added': return View.RECENTLY_ADDED;
+          case 'artists': return View.ARTISTS;
+          case 'albums': return View.ALBUMS;
+          case 'songs': return View.SONGS;
+          default: return View.SONGS;
+      }
+  };
+
+  const isItemActive = (id: string) => {
+      return activeView === getTargetView(id);
   };
 
   return (
@@ -41,34 +52,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, className =
 
       <div className="space-y-6 overflow-y-auto flex-1">
         <div>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">Apple Music</h3>
-          <ul className="space-y-1">
-            {NAV_ITEMS.map((item) => (
-              <li key={item.id}>
-                <button 
-                  onClick={() => onChangeView(View.HOME)}
-                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${activeView === View.HOME && item.id === 'home' ? 'bg-gray-100 text-apple-accent' : 'text-apple-text hover:bg-apple-hover'}`}
-                >
-                  <span className={activeView === View.HOME && item.id === 'home' ? 'text-apple-accent' : 'text-apple-accent'}>
-                    {renderIcon(item.icon)}
-                  </span>
-                  <span className="font-medium text-[15px]">{item.label}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">Library</h3>
           <ul className="space-y-1">
             {LIBRARY_ITEMS.map((item) => (
               <li key={item.id}>
                 <button 
-                   onClick={() => onChangeView(View.LIBRARY)}
-                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${activeView === View.LIBRARY && item.id === 'songs' ? 'bg-gray-100 text-apple-accent' : 'text-apple-text hover:bg-apple-hover'}`}
+                   onClick={() => onChangeView(getTargetView(item.id))}
+                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${isItemActive(item.id) ? 'bg-gray-100 text-apple-accent' : 'text-apple-text hover:bg-apple-hover'}`}
                 >
-                  <span className="text-apple-accent">
+                  <span className={isItemActive(item.id) ? 'text-apple-accent' : 'text-apple-accent'}>
                     {renderIcon(item.icon)}
                   </span>
                   <span className="font-medium text-[15px]">{item.label}</span>

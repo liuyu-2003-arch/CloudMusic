@@ -60,12 +60,6 @@ export const MOCK_SONGS: Song[] = [
   }
 ];
 
-export const NAV_ITEMS = [
-  { id: 'home', label: 'Listen Now', icon: 'PlayCircle' },
-  { id: 'browse', label: 'Browse', icon: 'LayoutGrid' },
-  { id: 'radio', label: 'Radio', icon: 'Radio' },
-];
-
 export const LIBRARY_ITEMS = [
   { id: 'recently_added', label: 'Recently Added', icon: 'Clock' },
   { id: 'artists', label: 'Artists', icon: 'Mic2' },

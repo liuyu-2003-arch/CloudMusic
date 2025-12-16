@@ -76,9 +76,26 @@ const LyricsView: React.FC<LyricsViewProps> = ({
 
   useEffect(() => {
     if (scrollRef.current) {
-      const activeEl = scrollRef.current.children[activeLineIndex] as HTMLElement;
-      if (activeEl) {
-        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const container = scrollRef.current;
+      const lyricsContainer = container.firstElementChild as HTMLElement;
+      
+      if (lyricsContainer && lyricsContainer.children[activeLineIndex]) {
+        const activeEl = lyricsContainer.children[activeLineIndex] as HTMLElement;
+        
+        // Strategy: Scroll so the active element is positioned near the top (e.g. 15% down),
+        // effectively making it the "second row" visually.
+        // We calculate the target scroll position.
+        const containerHeight = container.clientHeight;
+        const offset = containerHeight * 0.15; // Position 15% down from top
+        
+        // activeEl.offsetTop is relative to the lyricsContainer (which has the padding)
+        // We want the scroll top to be such that activeEl.top is at 'offset' pixels in the viewport.
+        const newScrollTop = activeEl.offsetTop - offset;
+
+        container.scrollTo({
+            top: newScrollTop,
+            behavior: 'smooth'
+        });
       }
     }
   }, [activeLineIndex]);
@@ -126,17 +143,21 @@ const LyricsView: React.FC<LyricsViewProps> = ({
         {/* Lyrics Area */}
         <div 
             className="w-full max-w-2xl flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']" 
-            style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}
+            style={{ 
+                maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)', 
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)' 
+            }}
             ref={scrollRef}
         >
-            <div className="space-y-8 text-center py-[50vh]">
+            {/* Added larger top padding to push content down initially, and large bottom padding to allow scrolling up */}
+            <div className="space-y-8 text-center pt-[20vh] pb-[60vh]">
                 {lyrics.map((line, idx) => (
                     <p 
                       key={idx} 
                       className={`text-2xl md:text-4xl font-bold transition-all duration-500 cursor-pointer leading-tight ${
                           idx === activeLineIndex 
-                            ? 'text-white scale-100 blur-none opacity-100' 
-                            : 'text-white/30 scale-95 blur-[0.5px] hover:text-white/60 hover:opacity-80'
+                            ? 'text-white scale-100 blur-none opacity-100 origin-center' 
+                            : 'text-white/40 scale-95 blur-[0.5px] hover:text-white/70 hover:opacity-80 origin-center'
                       }`}
                       onClick={() => {
                           const newTime = (idx / lyrics.length) * duration;
@@ -151,7 +172,7 @@ const LyricsView: React.FC<LyricsViewProps> = ({
       </div>
 
       {/* Bottom Controls (Compact) */}
-      <div className="relative z-20 w-full bg-black/20 backdrop-blur-xl border-t border-white/5 pb-8 pt-4 px-6 md:px-12 shrink-0">
+      <div className="relative z-20 w-full bg-black/20 backdrop-blur-xl border-t border-white/5 pb-8 pt-4 px-4 md:px-12 shrink-0">
           <div className="max-w-5xl mx-auto flex flex-col gap-3">
               
               {/* Progress Bar */}
@@ -177,42 +198,42 @@ const LyricsView: React.FC<LyricsViewProps> = ({
               {/* Controls Row */}
               <div className="flex items-center justify-between mt-1">
                   
-                  {/* Left: Song Info + Cover Art */}
-                  <div className="flex items-center w-[30%] gap-4 overflow-hidden">
-                      <div className="h-12 w-12 md:h-14 md:w-14 rounded-lg shadow-lg overflow-hidden flex-shrink-0 bg-gray-800">
+                  {/* Left: Song Info + Cover Art - Adapts on mobile to take available space */}
+                  <div className="flex items-center flex-1 min-w-0 sm:w-[30%] gap-3 sm:gap-4 overflow-hidden">
+                      <div className="h-10 w-10 md:h-14 md:w-14 rounded-lg shadow-lg overflow-hidden flex-shrink-0 bg-gray-800">
                           <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
                       </div>
-                      <div className="flex flex-col overflow-hidden justify-center">
-                          <h2 className="text-base md:text-lg font-bold text-white truncate">{song.title}</h2>
-                          <h3 className="text-xs md:text-sm text-white/60 truncate">{song.artist}</h3>
+                      <div className="flex flex-col overflow-hidden justify-center min-w-0">
+                          <h2 className="text-sm md:text-lg font-bold text-white truncate leading-tight">{song.title}</h2>
+                          <h3 className="text-xs md:text-sm text-white/60 truncate leading-tight">{song.artist}</h3>
                       </div>
                   </div>
 
-                  {/* Center: Play Buttons */}
-                  <div className="flex items-center justify-center space-x-6 w-[40%]">
+                  {/* Center: Play Buttons - Fixed width on mobile, centered on desktop */}
+                  <div className="flex items-center justify-end sm:justify-center space-x-4 md:space-x-6 flex-none sm:w-[40%]">
                       <button onClick={onPrev} className="text-white/70 hover:text-white transition-transform hover:scale-110">
-                          <SkipBack size={24} md:size={28} fill="currentColor" />
+                          <SkipBack size={20} className="md:w-7 md:h-7" fill="currentColor" />
                       </button>
                       
                       <button 
                         onClick={onPlayPause}
-                        className="w-12 h-12 md:w-14 md:h-14 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
+                        className="w-10 h-10 md:w-14 md:h-14 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
                       >
                           {isPlaying ? (
-                              <Pause size={22} md:size={24} fill="currentColor" />
+                              <Pause size={20} className="md:w-6 md:h-6" fill="currentColor" />
                           ) : (
-                              <Play size={22} md:size={24} fill="currentColor" className="ml-1" />
+                              <Play size={20} className="md:w-6 md:h-6 ml-0.5" fill="currentColor" />
                           )}
                       </button>
 
                       <button onClick={onNext} className="text-white/70 hover:text-white transition-transform hover:scale-110">
-                           <SkipForward size={24} md:size={28} fill="currentColor" />
+                           <SkipForward size={20} className="md:w-7 md:h-7" fill="currentColor" />
                       </button>
                   </div>
                   
-                  {/* Right: Volume / Extras */}
-                  <div className="flex items-center justify-end space-x-3 w-[30%]">
-                       <div className="hidden sm:flex items-center space-x-2 w-24 group">
+                  {/* Right: Volume / Extras - Hidden on mobile to prevent overflow */}
+                  <div className="hidden sm:flex items-center justify-end space-x-3 w-[30%]">
+                       <div className="flex items-center space-x-2 w-24 group">
                            <Volume2 size={16} className="text-white/50 group-hover:text-white" />
                            <input 
                               type="range" min="0" max="1" step="0.01" 
