@@ -6,15 +6,19 @@ import AddMusicModal from './components/AddMusicModal';
 import LoginModal from './components/LoginModal';
 import { MOCK_SONGS } from './constants';
 import { Song, View } from './types';
-import { Bell, LogIn, LogOut, ChevronDown, Plus, Edit3, Settings, ArrowLeft } from 'lucide-react';
+import { Bell, LogIn, LogOut, ChevronDown, Plus, Edit3, Settings, ArrowLeft, Check, Heart } from 'lucide-react';
 import { supabase, isUserAdmin } from './services/supabaseClient';
 
 export default function App() {
   const [activeView, setActiveView] = useState<View>(View.SONGS);
   const [myLibrary, setMyLibrary] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
+  
+  // State for functionality
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [likedSongIds, setLikedSongIds] = useState<Set<string>>(new Set());
   
   // Navigation State for Artists/Albums drill-down
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
@@ -26,6 +30,21 @@ export default function App() {
   // Header Dropdown State
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Load Liked Songs from LocalStorage on mount
+  useEffect(() => {
+      const storedLikes = localStorage.getItem('cloudmusic_liked_ids');
+      if (storedLikes) {
+          try {
+              const ids = JSON.parse(storedLikes);
+              if (Array.isArray(ids)) {
+                  setLikedSongIds(new Set(ids));
+              }
+          } catch (e) {
+              console.error("Failed to parse liked songs", e);
+          }
+      }
+  }, []);
 
   // Close menu on click outside
   useEffect(() => {
@@ -116,22 +135,57 @@ export default function App() {
 
         if (error) {
             console.error("Error adding song to Supabase:", error.message);
-            // Fallback: Update local state anyway so the user sees their song
+            // Fallback: Update local state anyway
             setMyLibrary(prev => [song, ...prev]);
-            alert(`Song added to local session only.\n\nCloud Save Failed: ${error.message}\n\nTip: If you are the developer, run the SQL in schema.sql in your Supabase dashboard.`);
+            alert(`Song added to local session only.\n\nCloud Save Failed: ${error.message}`);
         } else {
             setMyLibrary(prev => [song, ...prev]);
         }
     } catch (e) {
         console.error("Exception adding song:", e);
-        // Fallback for exceptions
         setMyLibrary(prev => [song, ...prev]);
     }
+  };
+
+  const handleDeleteSong = async (song: Song) => {
+      if (!window.confirm(`Are you sure you want to delete "${song.title}"?`)) {
+          return;
+      }
+
+      // Optimistic update
+      const prevLibrary = [...myLibrary];
+      setMyLibrary(prev => prev.filter(s => s.id !== song.id));
+
+      try {
+          const { error } = await supabase.from('songs').delete().eq('id', song.id);
+          if (error) {
+              console.error("Error deleting song:", error.message);
+              // Revert
+              setMyLibrary(prevLibrary);
+              alert("Failed to delete song from cloud: " + error.message);
+          }
+      } catch (e) {
+          console.error("Exception deleting song:", e);
+          setMyLibrary(prevLibrary);
+      }
+  };
+
+  const handleToggleLike = (songId?: string) => {
+      if (!songId) return;
+      const newSet = new Set(likedSongIds);
+      if (newSet.has(songId)) {
+          newSet.delete(songId);
+      } else {
+          newSet.add(songId);
+      }
+      setLikedSongIds(newSet);
+      localStorage.setItem('cloudmusic_liked_ids', JSON.stringify(Array.from(newSet)));
   };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setIsUserMenuOpen(false);
+    setIsEditMode(false);
   };
 
   const handlePlay = (song: Song) => {
@@ -160,21 +214,45 @@ export default function App() {
 
   const handleViewChange = (view: View) => {
       setActiveView(view);
-      // Reset drill-down selections when changing main view
       setSelectedArtist(null);
       setSelectedAlbum(null);
+      // Turn off edit mode when switching views mostly
+      setIsEditMode(false);
   };
 
   // --- View Logic ---
 
   const getDisplayedContent = () => {
+      // Common Props for Grid
+      const gridProps = {
+          onPlay: handlePlay,
+          isEditMode: isEditMode && isAdmin,
+          onDelete: handleDeleteSong
+      };
+
+      if (activeView === View.LIKED) {
+          const likedSongs = myLibrary.filter(s => likedSongIds.has(s.id));
+          if (likedSongs.length === 0) {
+               return (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <div className="bg-gray-100 p-6 rounded-full mb-4">
+                          <Heart size={48} className="text-gray-300" />
+                      </div>
+                      <h2 className="text-xl font-bold text-gray-700 mb-2">No Liked Songs</h2>
+                      <p className="text-gray-500">Tap the heart icon on any song to add it here.</p>
+                  </div>
+               );
+          }
+          return <MusicGrid title="Liked Songs" songs={likedSongs} {...gridProps} />;
+      }
+
       if (activeView === View.SONGS) {
-          return <MusicGrid title="Songs" songs={myLibrary} onPlay={handlePlay} />;
+          return <MusicGrid title="Songs" songs={myLibrary} {...gridProps} />;
       }
       
       if (activeView === View.RECENTLY_ADDED) {
           const sorted = [...myLibrary].sort((a, b) => b.addedAt - a.addedAt);
-          return <MusicGrid title="Recently Added" songs={sorted} onPlay={handlePlay} />;
+          return <MusicGrid title="Recently Added" songs={sorted} {...gridProps} />;
       }
 
       if (activeView === View.ARTISTS) {
@@ -188,7 +266,7 @@ export default function App() {
                         </button>
                         <h2 className="text-3xl font-bold text-gray-900">{selectedArtist}</h2>
                       </div>
-                      <MusicGrid title="Songs" songs={artistSongs} onPlay={handlePlay} />
+                      <MusicGrid title="Songs" songs={artistSongs} {...gridProps} />
                   </div>
               );
           } else {
@@ -200,10 +278,9 @@ export default function App() {
                   }
               });
               
-              // Convert to "Song-like" objects for the grid
               const artistItems = Array.from(artistsMap.values()).map(song => ({
                   ...song,
-                  id: song.artist, // Use artist name as ID
+                  id: song.artist, 
                   title: song.artist,
                   artist: 'Artist',
                   description: 'Artist'
@@ -213,7 +290,8 @@ export default function App() {
                 <MusicGrid 
                     title="Artists" 
                     songs={artistItems} 
-                    onPlay={(item) => setSelectedArtist(item.title)} 
+                    onPlay={(item) => setSelectedArtist(item.title)}
+                    // No edit mode in category view
                 />
               );
           }
@@ -230,7 +308,7 @@ export default function App() {
                       </button>
                       <h2 className="text-3xl font-bold text-gray-900">{selectedAlbum}</h2>
                     </div>
-                    <MusicGrid title="Songs" songs={albumSongs} onPlay={handlePlay} />
+                    <MusicGrid title="Songs" songs={albumSongs} {...gridProps} />
                 </div>
             );
         } else {
@@ -242,10 +320,9 @@ export default function App() {
                 }
             });
             
-            // Convert to "Song-like" objects for the grid
             const albumItems = Array.from(albumsMap.values()).map(song => ({
                 ...song,
-                id: song.album, // Use album name as ID
+                id: song.album, 
                 title: song.album,
                 artist: song.artist,
                 description: 'Album'
@@ -256,6 +333,7 @@ export default function App() {
                   title="Albums" 
                   songs={albumItems} 
                   onPlay={(item) => setSelectedAlbum(item.title)} 
+                  // No edit mode in category view
               />
             );
         }
@@ -284,6 +362,12 @@ export default function App() {
            
            <div className="flex items-center space-x-5">
               
+              {isEditMode && (
+                  <div className="px-3 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-full uppercase tracking-wide">
+                      Editing
+                  </div>
+              )}
+
               <button className="text-gray-500 hover:text-gray-700">
                 <Bell size={20} />
               </button>
@@ -323,11 +407,11 @@ export default function App() {
                                     <span>Add Music</span>
                                  </button>
                                  <button 
-                                   onClick={() => { alert('Edit Mode Coming Soon!'); setIsUserMenuOpen(false); }}
+                                   onClick={() => { setIsEditMode(!isEditMode); setIsUserMenuOpen(false); }}
                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-apple-accent flex items-center space-x-2"
                                  >
-                                    <Edit3 size={16} />
-                                    <span>Edit Library</span>
+                                    {isEditMode ? <Check size={16} className="text-green-500" /> : <Edit3 size={16} />}
+                                    <span>{isEditMode ? 'Done Editing' : 'Edit Library'}</span>
                                  </button>
                                </>
                              )}
@@ -387,7 +471,13 @@ export default function App() {
       </main>
 
       {/* Sticky Player */}
-      <Player currentSong={currentSong} onNext={handleNext} onPrev={handlePrev} />
+      <Player 
+        currentSong={currentSong} 
+        onNext={handleNext} 
+        onPrev={handlePrev}
+        isLiked={currentSong ? likedSongIds.has(currentSong.id) : false}
+        onLikeToggle={() => currentSong && handleToggleLike(currentSong.id)}
+      />
 
       {/* Add Music Modal */}
       <AddMusicModal 

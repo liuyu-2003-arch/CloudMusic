@@ -7,9 +7,11 @@ interface PlayerProps {
   currentSong: Song | null;
   onNext?: () => void;
   onPrev?: () => void;
+  isLiked?: boolean;
+  onLikeToggle?: () => void;
 }
 
-const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev }) => {
+const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev, isLiked, onLikeToggle }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -197,6 +199,8 @@ const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev }) => {
           onVolumeChange={setVolume}
           onClose={() => setIsLyricsOpen(false)}
           onSeek={handleSeek}
+          isLiked={isLiked}
+          onLikeToggle={onLikeToggle}
         />
       )}
     </>

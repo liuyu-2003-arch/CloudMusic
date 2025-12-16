@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Mic2, Disc, Music, Search } from 'lucide-react';
+import { Clock, Mic2, Disc, Music, Search, Heart } from 'lucide-react';
 import { LIBRARY_ITEMS } from '../constants';
 import { View } from '../types';
 
@@ -17,6 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, className =
       case 'Mic2': return <Mic2 size={20} />;
       case 'Disc': return <Disc size={20} />;
       case 'Music': return <Music size={20} />;
+      case 'Heart': return <Heart size={20} />;
       default: return <Music size={20} />;
     }
   };
@@ -27,6 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, className =
           case 'artists': return View.ARTISTS;
           case 'albums': return View.ALBUMS;
           case 'songs': return View.SONGS;
+          case 'liked': return View.LIKED;
           default: return View.SONGS;
       }
   };

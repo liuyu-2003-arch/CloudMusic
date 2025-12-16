@@ -22,5 +22,6 @@ export enum View {
   RECENTLY_ADDED = 'RECENTLY_ADDED',
   ARTISTS = 'ARTISTS',
   ALBUMS = 'ALBUMS',
-  SONGS = 'SONGS'
+  SONGS = 'SONGS',
+  LIKED = 'LIKED'
 }

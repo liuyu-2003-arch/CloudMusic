@@ -65,4 +65,5 @@ export const LIBRARY_ITEMS = [
   { id: 'artists', label: 'Artists', icon: 'Mic2' },
   { id: 'albums', label: 'Albums', icon: 'Disc' },
   { id: 'songs', label: 'Songs', icon: 'Music' },
+  { id: 'liked', label: 'Liked Songs', icon: 'Heart' },
 ];

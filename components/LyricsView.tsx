@@ -14,6 +14,8 @@ interface LyricsViewProps {
   volume: number;
   onVolumeChange: (val: number) => void;
   onSeek: (val: number) => void;
+  isLiked?: boolean;
+  onLikeToggle?: () => void;
 }
 
 // Simulated lyrics generation for demo purposes
@@ -53,11 +55,11 @@ const getLyrics = (song: Song) => {
 
 const LyricsView: React.FC<LyricsViewProps> = ({ 
   song, currentTime, duration, onClose, isPlaying, 
-  onPlayPause, onNext, onPrev, volume, onVolumeChange, onSeek
+  onPlayPause, onNext, onPrev, volume, onVolumeChange, onSeek,
+  isLiked = false, onLikeToggle
 }) => {
   const [lyrics, setLyrics] = useState<string[]>([]);
   const [isClosing, setIsClosing] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -130,8 +132,8 @@ const LyricsView: React.FC<LyricsViewProps> = ({
              <span className="text-sm font-bold truncate max-w-[200px]">{song.album}</span>
          </div>
          <button 
-            onClick={() => setIsLiked(!isLiked)}
-            className={`bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors ${isLiked ? 'text-red-500' : 'text-white'}`}
+            onClick={onLikeToggle}
+            className={`bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors ${isLiked ? 'text-apple-accent' : 'text-white'}`}
          >
             <Heart size={24} fill={isLiked ? "currentColor" : "none"} />
          </button>
