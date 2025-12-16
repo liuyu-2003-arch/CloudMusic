@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Song } from '../types';
-import { ChevronDown, MessageSquareQuote, MoreHorizontal, ListMusic } from 'lucide-react';
+import { ChevronDown, SkipBack, SkipForward, Play, Pause, Volume2, Heart } from 'lucide-react';
 
 interface LyricsViewProps {
   song: Song;
@@ -55,8 +55,21 @@ const LyricsView: React.FC<LyricsViewProps> = ({
   song, currentTime, duration, onClose, isPlaying, 
   onPlayPause, onNext, onPrev, volume, onVolumeChange, onSeek
 }) => {
-  const lyrics = getLyrics(song);
+  const [lyrics, setLyrics] = useState<string[]>([]);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    setLyrics(getLyrics(song));
+  }, [song]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+        onClose();
+    }, 300); // Matches duration-300
+  };
   
   // Calculate active line based on simple time division for demo
   const activeLineIndex = Math.floor((currentTime / (duration || 1)) * lyrics.length);
@@ -77,138 +90,138 @@ const LyricsView: React.FC<LyricsViewProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-gray-900 text-white overflow-hidden animate-in slide-in-from-bottom duration-300">
+    <div className={`fixed inset-0 z-[60] flex flex-col bg-gray-900 text-white overflow-hidden ${isClosing ? 'animate-out slide-out-to-bottom fade-out' : 'animate-in slide-in-from-bottom fade-in'} duration-300`}>
       
       {/* Dynamic Background */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img 
           src={song.coverUrl} 
           alt="Background" 
-          className="w-full h-full object-cover blur-3xl opacity-50 scale-150 transform" 
+          className="w-full h-full object-cover blur-3xl opacity-40 scale-150 transform" 
         />
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-3xl"></div>
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80"></div>
       </div>
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12">
-         <button onClick={onClose} className="bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors">
+      <div className="relative z-10 flex items-center justify-between px-6 py-4 md:px-8 shrink-0">
+         <button onClick={handleClose} className="bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors">
             <ChevronDown size={24} />
          </button>
-         <div className="flex flex-col items-center">
+         <div className="flex flex-col items-center opacity-80">
              <span className="text-xs font-semibold uppercase tracking-widest text-white/60">Playing from Library</span>
-             <span className="text-sm font-bold">{song.album}</span>
+             <span className="text-sm font-bold truncate max-w-[200px]">{song.album}</span>
          </div>
-         <button className="bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors">
-            <MoreHorizontal size={24} />
+         <button 
+            onClick={() => setIsLiked(!isLiked)}
+            className={`bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors ${isLiked ? 'text-red-500' : 'text-white'}`}
+         >
+            <Heart size={24} fill={isLiked ? "currentColor" : "none"} />
          </button>
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 flex-1 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-20 px-8 pb-10 overflow-hidden">
+      {/* Main Content (Lyrics Only) */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-start px-8 pb-4 overflow-hidden">
         
-        {/* Left: Album Art */}
-        <div className="w-full max-w-sm md:max-w-md aspect-square flex-shrink-0 shadow-2xl rounded-2xl overflow-hidden transform transition-transform duration-500 hover:scale-[1.02]">
-            <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
-        </div>
-
-        {/* Right: Lyrics & Controls (Split on Desktop) */}
-        <div className="flex-1 w-full max-w-2xl flex flex-col h-full min-h-0">
-            
-            {/* Lyrics Area */}
-            <div className="flex-1 overflow-y-auto no-scrollbar mask-image-gradient py-10" ref={scrollRef}>
-                <div className="space-y-6 text-center md:text-left">
-                    {lyrics.map((line, idx) => (
-                        <p 
-                          key={idx} 
-                          className={`text-2xl md:text-4xl font-bold transition-all duration-500 cursor-pointer ${
-                              idx === activeLineIndex 
-                                ? 'text-white scale-100 blur-none' 
-                                : 'text-white/30 scale-95 blur-[1px] hover:text-white/60'
-                          }`}
-                          onClick={() => {
-                              // Seek to approximate time of this line
-                              const newTime = (idx / lyrics.length) * duration;
-                              onSeek(newTime);
-                          }}
-                        >
-                            {line}
-                        </p>
-                    ))}
-                    {/* Spacer for bottom scrolling */}
-                    <div className="h-40"></div> 
-                </div>
+        {/* Lyrics Area */}
+        <div 
+            className="w-full max-w-2xl flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']" 
+            style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' }}
+            ref={scrollRef}
+        >
+            <div className="space-y-8 text-center py-[50vh]">
+                {lyrics.map((line, idx) => (
+                    <p 
+                      key={idx} 
+                      className={`text-2xl md:text-4xl font-bold transition-all duration-500 cursor-pointer leading-tight ${
+                          idx === activeLineIndex 
+                            ? 'text-white scale-100 blur-none opacity-100' 
+                            : 'text-white/30 scale-95 blur-[0.5px] hover:text-white/60 hover:opacity-80'
+                      }`}
+                      onClick={() => {
+                          const newTime = (idx / lyrics.length) * duration;
+                          onSeek(newTime);
+                      }}
+                    >
+                        {line}
+                    </p>
+                ))}
             </div>
-
-            {/* Desktop-only Controls inside the layout, usually Apple Music keeps controls at bottom or separate. 
-                We will put a mini control set here for the full screen feel if needed, 
-                but strictly speaking, the bottom player usually transforms. 
-                For this layout, let's keep it simple: Just lyrics here.
-            */}
         </div>
       </div>
 
-      {/* Bottom Controls (Overlay Style) */}
-      <div className="relative z-20 px-8 pb-12 pt-4 w-full max-w-5xl mx-auto">
-          {/* Progress */}
-          <div className="mb-6 group">
-              <input 
-                type="range" 
-                min={0} 
-                max={duration || 100} 
-                value={currentTime} 
-                onChange={(e) => onSeek(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
-              />
-              <div className="flex justify-between text-xs font-medium text-white/50 mt-2">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
-              </div>
-          </div>
-
-          {/* Title & Artist (Mobile mainly, but good for context) */}
-          <div className="flex items-end justify-between mb-8">
-              <div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-1">{song.title}</h2>
-                  <h3 className="text-lg md:text-xl text-white/60">{song.artist}</h3>
-              </div>
-              <div className="flex space-x-4">
-                  <button className="p-2 text-white/60 hover:text-white bg-white/10 rounded-full"><MessageSquareQuote /></button>
-                  <button className="p-2 text-white/60 hover:text-white bg-white/10 rounded-full"><ListMusic /></button>
-              </div>
-          </div>
-
-          {/* Main Buttons */}
-          <div className="flex items-center justify-center space-x-10">
-              <button onClick={onPrev} className="text-white/70 hover:text-white transition-transform hover:scale-110">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-              </button>
+      {/* Bottom Controls (Compact) */}
+      <div className="relative z-20 w-full bg-black/20 backdrop-blur-xl border-t border-white/5 pb-8 pt-4 px-6 md:px-12 shrink-0">
+          <div className="max-w-5xl mx-auto flex flex-col gap-3">
               
-              <button 
-                onClick={onPlayPause}
-                className="w-20 h-20 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
-              >
-                  {isPlaying ? (
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                  ) : (
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" className="ml-1"><path d="M8 5v14l11-7z"/></svg>
-                  )}
-              </button>
+              {/* Progress Bar */}
+              <div className="group flex items-center space-x-3 w-full">
+                  <span className="text-xs font-medium text-white/50 w-8 text-right tabular-nums">{formatTime(currentTime)}</span>
+                  <div className="flex-1 h-1 bg-white/20 rounded-full relative cursor-pointer group-hover:h-1.5 transition-all">
+                      <div 
+                        className="absolute top-0 left-0 h-full bg-white/90 rounded-full" 
+                        style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} 
+                      />
+                      <input 
+                        type="range" 
+                        min={0} 
+                        max={duration || 100} 
+                        value={currentTime} 
+                        onChange={(e) => onSeek(parseFloat(e.target.value))}
+                        className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                      />
+                  </div>
+                  <span className="text-xs font-medium text-white/50 w-8 tabular-nums">{formatTime(duration)}</span>
+              </div>
 
-              <button onClick={onNext} className="text-white/70 hover:text-white transition-transform hover:scale-110">
-                   <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-              </button>
-          </div>
-          
-          {/* Volume Slider (Bottom Center) */}
-          <div className="max-w-xs mx-auto mt-8 flex items-center space-x-3 opacity-0 hover:opacity-100 transition-opacity">
-               <svg width="16" height="16" viewBox="0 0 24 24" fill="white" className="opacity-50"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
-               <input 
-                  type="range" min="0" max="1" step="0.01" 
-                  value={volume} onChange={e => onVolumeChange(parseFloat(e.target.value))}
-                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
-               />
-               <svg width="16" height="16" viewBox="0 0 24 24" fill="white" className="opacity-50"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+              {/* Controls Row */}
+              <div className="flex items-center justify-between mt-1">
+                  
+                  {/* Left: Song Info + Cover Art */}
+                  <div className="flex items-center w-[30%] gap-4 overflow-hidden">
+                      <div className="h-12 w-12 md:h-14 md:w-14 rounded-lg shadow-lg overflow-hidden flex-shrink-0 bg-gray-800">
+                          <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex flex-col overflow-hidden justify-center">
+                          <h2 className="text-base md:text-lg font-bold text-white truncate">{song.title}</h2>
+                          <h3 className="text-xs md:text-sm text-white/60 truncate">{song.artist}</h3>
+                      </div>
+                  </div>
+
+                  {/* Center: Play Buttons */}
+                  <div className="flex items-center justify-center space-x-6 w-[40%]">
+                      <button onClick={onPrev} className="text-white/70 hover:text-white transition-transform hover:scale-110">
+                          <SkipBack size={24} md:size={28} fill="currentColor" />
+                      </button>
+                      
+                      <button 
+                        onClick={onPlayPause}
+                        className="w-12 h-12 md:w-14 md:h-14 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
+                      >
+                          {isPlaying ? (
+                              <Pause size={22} md:size={24} fill="currentColor" />
+                          ) : (
+                              <Play size={22} md:size={24} fill="currentColor" className="ml-1" />
+                          )}
+                      </button>
+
+                      <button onClick={onNext} className="text-white/70 hover:text-white transition-transform hover:scale-110">
+                           <SkipForward size={24} md:size={28} fill="currentColor" />
+                      </button>
+                  </div>
+                  
+                  {/* Right: Volume / Extras */}
+                  <div className="flex items-center justify-end space-x-3 w-[30%]">
+                       <div className="hidden sm:flex items-center space-x-2 w-24 group">
+                           <Volume2 size={16} className="text-white/50 group-hover:text-white" />
+                           <input 
+                              type="range" min="0" max="1" step="0.01" 
+                              value={volume} onChange={e => onVolumeChange(parseFloat(e.target.value))}
+                              className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:opacity-0 group-hover:[&::-webkit-slider-thumb]:opacity-100"
+                           />
+                       </div>
+                  </div>
+              </div>
           </div>
       </div>
     </div>
