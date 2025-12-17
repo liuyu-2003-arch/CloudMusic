@@ -99,7 +99,7 @@ const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev, isLiked, o
       {/* Main Player Bar */}
       <div className="h-[84px] md:h-[88px] bg-white/95 backdrop-blur-2xl backdrop-saturate-150 border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 flex items-center px-3 md:px-6 shadow-lg transition-all duration-300 justify-between select-none">
         
-        {/* Mobile Progress Line at top - Increased height for visibility */}
+        {/* Mobile Progress Line at top */}
         <div className="md:hidden absolute top-0 left-0 right-0 h-[3px] bg-gray-100">
             <div className="h-full bg-apple-accent transition-all duration-200" style={{ width: `${progress}%` }}></div>
         </div>
@@ -114,7 +114,7 @@ const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev, isLiked, o
         <div className="flex items-center flex-1 md:w-1/4 md:min-w-[200px] min-w-0 group overflow-hidden">
           <div 
             onClick={() => setIsLyricsOpen(true)}
-            className="h-11 w-11 md:h-12 md:w-12 rounded-lg overflow-hidden shadow-sm bg-gray-200 mr-3 relative cursor-pointer hover:scale-105 transition-transform flex-shrink-0 active:scale-95"
+            className="h-11 w-11 md:h-12 md:w-12 rounded-lg overflow-hidden shadow-sm bg-gray-200 mr-3 relative cursor-pointer hover:scale-105 active:scale-90 transition-transform duration-200 flex-shrink-0"
           >
              <img src={currentSong.coverUrl} alt="Cover" className="h-full w-full object-cover" />
              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
@@ -183,7 +183,7 @@ const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev, isLiked, o
             className={`text-gray-500 hover:text-apple-accent transition-colors ${isLyricsOpen ? 'text-apple-accent' : ''}`}
             onClick={() => setIsLyricsOpen(!isLyricsOpen)}
           >
-              <span className="text-[10px] border border-current px-2 py-0.5 rounded font-bold whitespace-nowrap active:bg-gray-100">LYRICS</span>
+              <span className="text-[10px] border border-current px-2 py-0.5 rounded font-bold whitespace-nowrap active:bg-gray-100 active:scale-95 inline-block transition-transform">LYRICS</span>
           </button>
           <div className="hidden md:flex items-center space-x-2 w-24 group">
               <Volume2 size={18} className="text-gray-500" />

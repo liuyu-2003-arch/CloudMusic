@@ -20,8 +20,6 @@ interface LyricsViewProps {
 
 // Simulated lyrics generation for demo purposes
 const getLyrics = (song: Song) => {
-  // If we had real lyrics, we'd parse them here.
-  // For the demo, we create a structure based on description or generic text
   const baseLyrics = [
     "Verse 1",
     `Listening to ${song.title}`,
@@ -60,6 +58,7 @@ const LyricsView: React.FC<LyricsViewProps> = ({
 }) => {
   const [lyrics, setLyrics] = useState<string[]>([]);
   const [isClosing, setIsClosing] = useState(false);
+  const [animateHeart, setAnimateHeart] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -70,7 +69,13 @@ const LyricsView: React.FC<LyricsViewProps> = ({
     setIsClosing(true);
     setTimeout(() => {
         onClose();
-    }, 300); // Matches duration-300
+    }, 400); // Matches the new CSS slide-down-ios duration
+  };
+
+  const handleLike = () => {
+      setAnimateHeart(true);
+      if (onLikeToggle) onLikeToggle();
+      setTimeout(() => setAnimateHeart(false), 450); // Matches animation-duration
   };
   
   // Calculate active line based on simple time division for demo
@@ -83,15 +88,8 @@ const LyricsView: React.FC<LyricsViewProps> = ({
       
       if (lyricsContainer && lyricsContainer.children[activeLineIndex]) {
         const activeEl = lyricsContainer.children[activeLineIndex] as HTMLElement;
-        
-        // Strategy: Scroll so the active element is positioned near the top (e.g. 15% down),
-        // effectively making it the "second row" visually.
-        // We calculate the target scroll position.
         const containerHeight = container.clientHeight;
-        const offset = containerHeight * 0.15; // Position 15% down from top
-        
-        // activeEl.offsetTop is relative to the lyricsContainer (which has the padding)
-        // We want the scroll top to be such that activeEl.top is at 'offset' pixels in the viewport.
+        const offset = containerHeight * 0.15; 
         const newScrollTop = activeEl.offsetTop - offset;
 
         container.scrollTo({
@@ -109,14 +107,14 @@ const LyricsView: React.FC<LyricsViewProps> = ({
   };
 
   return (
-    <div className={`fixed inset-0 z-[60] flex flex-col bg-gray-900 text-white overflow-hidden ${isClosing ? 'animate-out slide-out-to-bottom fade-out' : 'animate-in slide-in-from-bottom fade-in'} duration-300`}>
+    <div className={`fixed inset-0 z-[60] flex flex-col bg-gray-900 text-white overflow-hidden ${isClosing ? 'animate-out-ios' : 'animate-in-ios'}`}>
       
       {/* Dynamic Background */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img 
           src={song.coverUrl} 
           alt="Background" 
-          className="w-full h-full object-cover blur-3xl opacity-40 scale-150 transform" 
+          className="w-full h-full object-cover blur-3xl opacity-40 scale-150 transform transition-transform duration-[10s]" 
         />
         <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80"></div>
@@ -124,18 +122,21 @@ const LyricsView: React.FC<LyricsViewProps> = ({
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-6 py-4 md:px-8 shrink-0">
-         <button onClick={handleClose} className="bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors">
+         <button 
+           onClick={handleClose} 
+           className="bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-all active:scale-90"
+         >
             <ChevronDown size={24} />
          </button>
-         <div className="flex flex-col items-center opacity-80">
+         <div className="flex flex-col items-center opacity-0 animate-[fadeIn_0.5s_ease-out_0.3s_forwards]">
              <span className="text-xs font-semibold uppercase tracking-widest text-white/60">Playing from Library</span>
              <span className="text-sm font-bold truncate max-w-[200px]">{song.album}</span>
          </div>
          <button 
-            onClick={onLikeToggle}
-            className={`bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors ${isLiked ? 'text-apple-accent' : 'text-white'}`}
+            onClick={handleLike}
+            className={`bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors active:scale-90 ${isLiked ? 'text-apple-accent' : 'text-white'}`}
          >
-            <Heart size={24} fill={isLiked ? "currentColor" : "none"} />
+            <Heart size={24} fill={isLiked ? "currentColor" : "none"} className={animateHeart ? 'animate-like-bounce' : ''} />
          </button>
       </div>
 
@@ -151,8 +152,8 @@ const LyricsView: React.FC<LyricsViewProps> = ({
             }}
             ref={scrollRef}
         >
-            {/* Added larger top padding to push content down initially, and large bottom padding to allow scrolling up */}
-            <div className="space-y-8 text-center pt-[20vh] pb-[60vh]">
+            {/* Lyrics content fading in slightly later than the sheet */}
+            <div className="space-y-8 text-center pt-[20vh] pb-[60vh] opacity-0 animate-[fadeIn_0.6s_ease-out_0.2s_forwards]">
                 {lyrics.map((line, idx) => (
                     <p 
                       key={idx} 
@@ -174,7 +175,7 @@ const LyricsView: React.FC<LyricsViewProps> = ({
       </div>
 
       {/* Bottom Controls (Compact) */}
-      <div className="relative z-20 w-full bg-black/20 backdrop-blur-xl border-t border-white/5 pb-8 pt-4 px-4 md:px-12 shrink-0">
+      <div className="relative z-20 w-full bg-black/20 backdrop-blur-xl border-t border-white/5 pb-8 pt-4 px-4 md:px-12 shrink-0 animate-[slideUp_0.5s_ease-out_0.1s]">
           <div className="max-w-5xl mx-auto flex flex-col gap-3">
               
               {/* Progress Bar */}
@@ -200,7 +201,7 @@ const LyricsView: React.FC<LyricsViewProps> = ({
               {/* Controls Row */}
               <div className="flex items-center justify-between mt-1">
                   
-                  {/* Left: Song Info + Cover Art - Adapts on mobile to take available space */}
+                  {/* Left: Song Info + Cover Art */}
                   <div className="flex items-center flex-1 min-w-0 sm:w-[30%] gap-3 sm:gap-4 overflow-hidden">
                       <div className="h-10 w-10 md:h-14 md:w-14 rounded-lg shadow-lg overflow-hidden flex-shrink-0 bg-gray-800">
                           <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
@@ -211,15 +212,15 @@ const LyricsView: React.FC<LyricsViewProps> = ({
                       </div>
                   </div>
 
-                  {/* Center: Play Buttons - Fixed width on mobile, centered on desktop */}
+                  {/* Center: Play Buttons */}
                   <div className="flex items-center justify-end sm:justify-center space-x-4 md:space-x-6 flex-none sm:w-[40%]">
-                      <button onClick={onPrev} className="text-white/70 hover:text-white transition-transform hover:scale-110">
+                      <button onClick={onPrev} className="text-white/70 hover:text-white transition-transform active:scale-90">
                           <SkipBack size={20} className="md:w-7 md:h-7" fill="currentColor" />
                       </button>
                       
                       <button 
                         onClick={onPlayPause}
-                        className="w-10 h-10 md:w-14 md:h-14 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
+                        className="w-10 h-10 md:w-14 md:h-14 bg-white text-black rounded-full flex items-center justify-center transition-transform shadow-lg active:scale-90 hover:scale-105"
                       >
                           {isPlaying ? (
                               <Pause size={20} className="md:w-6 md:h-6" fill="currentColor" />
@@ -228,12 +229,12 @@ const LyricsView: React.FC<LyricsViewProps> = ({
                           )}
                       </button>
 
-                      <button onClick={onNext} className="text-white/70 hover:text-white transition-transform hover:scale-110">
+                      <button onClick={onNext} className="text-white/70 hover:text-white transition-transform active:scale-90">
                            <SkipForward size={20} className="md:w-7 md:h-7" fill="currentColor" />
                       </button>
                   </div>
                   
-                  {/* Right: Volume / Extras - Hidden on mobile to prevent overflow */}
+                  {/* Right: Volume / Extras */}
                   <div className="hidden sm:flex items-center justify-end space-x-3 w-[30%]">
                        <div className="flex items-center space-x-2 w-24 group">
                            <Volume2 size={16} className="text-white/50 group-hover:text-white" />

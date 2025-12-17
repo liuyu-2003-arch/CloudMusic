@@ -38,6 +38,26 @@
             },
             fontFamily: {
               sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+            },
+            animation: {
+              'like-bounce': 'like-bounce 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              'slide-up-ios': 'slide-up 0.5s cubic-bezier(0.32, 0.72, 0, 1)',
+              'slide-down-ios': 'slide-down 0.4s cubic-bezier(0.32, 0.72, 0, 1)',
+            },
+            keyframes: {
+              'like-bounce': {
+                '0%': { transform: 'scale(1)' },
+                '40%': { transform: 'scale(1.4)' },
+                '100%': { transform: 'scale(1)' },
+              },
+              'slide-up': {
+                '0%': { transform: 'translateY(100%)' },
+                '100%': { transform: 'translateY(0)' },
+              },
+              'slide-down': {
+                '0%': { transform: 'translateY(0)' },
+                '100%': { transform: 'translateY(100%)' },
+              }
             }
           }
         }
@@ -63,6 +83,13 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         overscroll-behavior-y: none; /* Prevent bounce effect on mobile */
+      }
+      /* Animation Utilities */
+      .animate-in-ios {
+        animation: slide-up 0.5s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+      }
+      .animate-out-ios {
+        animation: slide-down 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards;
       }
     </style>
   <script type="importmap">
