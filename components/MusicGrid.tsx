@@ -1,6 +1,6 @@
 import React from 'react';
 import { Song } from '../types';
-import { Play, Trash2 } from 'lucide-react';
+import { Play, Trash2, Edit2 } from 'lucide-react';
 
 interface MusicGridProps {
   title: string;
@@ -8,14 +8,14 @@ interface MusicGridProps {
   onPlay: (song: Song) => void;
   isEditMode?: boolean;
   onDelete?: (song: Song) => void;
+  onEdit?: (song: Song) => void;
 }
 
-const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode = false, onDelete }) => {
+const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode = false, onDelete, onEdit }) => {
   return (
     <div className="mb-10">
       <div className="flex items-center justify-between mb-4 px-1">
         <h2 className="text-2xl font-bold text-apple-text">{title}</h2>
-        {/* Hide See All in Edit Mode for clarity */}
         {!isEditMode && <button className="text-apple-accent text-sm font-medium hover:underline">See All</button>}
       </div>
       
@@ -23,7 +23,7 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
         {songs.map((song) => (
           <div key={song.id} className="group relative flex flex-col cursor-pointer" onClick={() => !isEditMode && onPlay(song)}>
             {/* Cover Image Container */}
-            <div className={`relative aspect-square w-full overflow-hidden rounded-xl shadow-md bg-gray-200 mb-3 transition-all duration-300 ${isEditMode ? 'scale-95 opacity-90 ring-2 ring-red-100' : 'group-hover:scale-[1.02]'}`}>
+            <div className={`relative aspect-square w-full overflow-hidden rounded-xl shadow-md bg-gray-200 mb-3 transition-all duration-300 ${isEditMode ? 'scale-95 ring-4 ring-apple-accent/20' : 'group-hover:scale-[1.02]'}`}>
               <img 
                 src={song.coverUrl} 
                 alt={song.title} 
@@ -40,9 +40,19 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
                 </div>
               )}
 
-              {/* Delete Button (Edit Mode) */}
+              {/* Edit Actions (Edit Mode) */}
               {isEditMode && (
-                  <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] flex items-center justify-center animate-in fade-in duration-200">
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center gap-3 animate-in fade-in duration-200">
+                      <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit && onEdit(song);
+                        }}
+                        className="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 shadow-xl transform hover:scale-110 active:scale-95 transition-all"
+                        aria-label="Edit song"
+                      >
+                          <Edit2 size={20} />
+                      </button>
                       <button 
                         onClick={(e) => {
                             e.stopPropagation();
@@ -51,7 +61,7 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
                         className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 shadow-xl transform hover:scale-110 active:scale-95 transition-all"
                         aria-label="Delete song"
                       >
-                          <Trash2 size={24} />
+                          <Trash2 size={20} />
                       </button>
                   </div>
               )}

@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MusicGrid from './components/MusicGrid';
 import Player from './components/Player';
-import AddMusicModal from './components/AddMusicModal';
+import SongModal from './components/SongModal';
 import LoginModal from './components/LoginModal';
 import { MOCK_SONGS } from './constants';
 import { Song, View } from './types';
-import { Bell, LogIn, LogOut, ChevronDown, Plus, Edit3, Settings, ArrowLeft, Check, Heart } from 'lucide-react';
+import { LogIn, LogOut, ChevronDown, Plus, Edit3, Check } from 'lucide-react';
 import { supabase, isUserAdmin } from './services/supabaseClient';
 
 export default function App() {
@@ -14,14 +14,13 @@ export default function App() {
   const [myLibrary, setMyLibrary] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSong, setEditingSong] = useState<Song | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [likedSongIds, setLikedSongIds] = useState<Set<string>>(new Set());
   const [isLyricsOpen, setIsLyricsOpen] = useState(false);
   
-  const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
-  const [selectedAlbum, setSelectedAlbum] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -73,6 +72,42 @@ export default function App() {
       await supabase.from('songs').delete().eq('id', song.id);
   };
 
+  const handleSaveSong = async (song: Song) => {
+    // Check if it's an update or a new song
+    const isNew = !myLibrary.some(s => s.id === song.id);
+    
+    if (isNew) {
+      setMyLibrary(prev => [song, ...prev]);
+      await supabase.from('songs').insert({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        album: song.album,
+        cover_url: song.coverUrl,
+        audio_url: song.audioUrl,
+        lyrics_url: song.lyricsUrl,
+        added_at: song.addedAt,
+        description: song.description
+      });
+    } else {
+      setMyLibrary(prev => prev.map(s => s.id === song.id ? song : s));
+      await supabase.from('songs').update({
+        title: song.title,
+        artist: song.artist,
+        album: song.album,
+        cover_url: song.coverUrl,
+        audio_url: song.audioUrl,
+        lyrics_url: song.lyricsUrl,
+        description: song.description
+      }).eq('id', song.id);
+
+      // If the edited song is currently playing, update the player state
+      if (currentSong?.id === song.id) {
+        setCurrentSong(song);
+      }
+    }
+  };
+
   const handleToggleLike = (songId?: string) => {
       if (!songId) return;
       const newSet = new Set(likedSongIds);
@@ -87,7 +122,6 @@ export default function App() {
   return (
     <div className="relative h-screen w-screen bg-black overflow-hidden font-sans">
       
-      {/* 所有的主内容包裹在一个可以缩放的层中 */}
       <div className={`flex h-full w-full bg-apple-bg transition-all duration-500 origin-top ${isLyricsOpen ? 'app-shrink' : 'app-expand'}`}>
         {/* Sidebar */}
         <aside className="hidden md:block w-[260px] flex-shrink-0 z-20">
@@ -115,7 +149,7 @@ export default function App() {
                              <div className="py-1">
                                {isAdmin && (
                                  <>
-                                   <button onClick={() => { setIsAddModalOpen(true); setIsUserMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-apple-accent flex items-center space-x-2"><Plus size={16} /><span>Add Music</span></button>
+                                   <button onClick={() => { setEditingSong(null); setIsModalOpen(true); setIsUserMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-apple-accent flex items-center space-x-2"><Plus size={16} /><span>Add Music</span></button>
                                    <button onClick={() => { setIsEditMode(!isEditMode); setIsUserMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-apple-accent flex items-center space-x-2">{isEditMode ? <Check size={16} className="text-green-500" /> : <Edit3 size={16} />}<span>{isEditMode ? 'Done Editing' : 'Edit Library'}</span></button>
                                  </>
                                )}
@@ -139,6 +173,7 @@ export default function App() {
                   onPlay={setCurrentSong} 
                   isEditMode={isEditMode && isAdmin}
                   onDelete={handleDeleteSong}
+                  onEdit={(s) => { setEditingSong(s); setIsModalOpen(true); }}
                 />
               )}
             </div>
@@ -146,7 +181,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Player Section */}
       <Player 
         currentSong={currentSong} 
         onNext={() => {}} 
@@ -157,7 +191,12 @@ export default function App() {
         onSetLyricsOpen={setIsLyricsOpen}
       />
 
-      <AddMusicModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={(s) => setMyLibrary(p => [s, ...p])} />
+      <SongModal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setEditingSong(null); }} 
+        onSave={handleSaveSong} 
+        editingSong={editingSong}
+      />
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </div>
   );
