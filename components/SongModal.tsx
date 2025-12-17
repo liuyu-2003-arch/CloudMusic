@@ -19,20 +19,15 @@ const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, editingS
   const [lyricsUrl, setLyricsUrl] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (editingSong) {
-      setTitle(editingSong.title || '');
-      setArtist(editingSong.artist || '');
-      setAlbum(editingSong.album || '');
-      setCoverUrl(editingSong.coverUrl || '');
-      setAudioUrl(editingSong.audioUrl || '');
-      setLyricsUrl(editingSong.lyricsUrl || '');
-    } else {
-      resetForm();
-    }
-  }, [editingSong, isOpen]);
-
-  if (!isOpen) return null;
+  // Define helpers BEFORE hooks that might use them to avoid ReferenceError
+  const resetForm = () => {
+      setTitle('');
+      setArtist('');
+      setAlbum('');
+      setCoverUrl('');
+      setAudioUrl('');
+      setLyricsUrl('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,14 +57,20 @@ const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, editingS
     onClose();
   };
 
-  const resetForm = () => {
-      setTitle('');
-      setArtist('');
-      setAlbum('');
-      setCoverUrl('');
-      setAudioUrl('');
-      setLyricsUrl('');
-  };
+  useEffect(() => {
+    if (editingSong) {
+      setTitle(editingSong.title || '');
+      setArtist(editingSong.artist || '');
+      setAlbum(editingSong.album || '');
+      setCoverUrl(editingSong.coverUrl || '');
+      setAudioUrl(editingSong.audioUrl || '');
+      setLyricsUrl(editingSong.lyricsUrl || '');
+    } else {
+      resetForm();
+    }
+  }, [editingSong, isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
