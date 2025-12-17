@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Song } from '../types';
-import { Play, Pause, SkipBack, SkipForward, Volume2, ListMusic, Repeat, Shuffle, Maximize2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2 } from 'lucide-react';
 import LyricsView from './LyricsView';
 
 interface PlayerProps {
@@ -9,211 +9,112 @@ interface PlayerProps {
   onPrev?: () => void;
   isLiked?: boolean;
   onLikeToggle?: () => void;
+  isLyricsOpen: boolean;
+  onSetLyricsOpen: (open: boolean) => void;
 }
 
-const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev, isLiked, onLikeToggle }) => {
+const Player: React.FC<PlayerProps> = ({ 
+  currentSong, onNext, onPrev, isLiked, onLikeToggle,
+  isLyricsOpen, onSetLyricsOpen
+}) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(0.5);
   const [duration, setDuration] = useState(0);
-  const [isLyricsOpen, setIsLyricsOpen] = useState(false);
 
   useEffect(() => {
     if (currentSong && audioRef.current) {
       if (currentSong.audioUrl) {
           audioRef.current.src = currentSong.audioUrl;
-          audioRef.current.play().then(() => setIsPlaying(true)).catch(e => {
-            console.error("Auto-play failed:", e);
-            setIsPlaying(false);
-          });
+          audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
       } else {
-        // Mock playing if no URL
         setIsPlaying(true);
-        setDuration(180); // Mock 3 mins
+        setDuration(180);
       }
     }
   }, [currentSong]);
 
-  useEffect(() => {
-     if(audioRef.current) {
-         audioRef.current.volume = volume;
-     }
-  }, [volume]);
-
   const togglePlay = () => {
     if (!audioRef.current || !currentSong?.audioUrl) {
-        setIsPlaying(!isPlaying); // Mock toggle
+        setIsPlaying(!isPlaying);
         return;
     }
-    
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
+    isPlaying ? audioRef.current.pause() : audioRef.current.play();
     setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
-      const current = audioRef.current.currentTime;
-      const total = audioRef.current.duration;
-      if (total) {
-          setDuration(total);
-          setProgress((current / total) * 100);
-      }
+      setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+      setDuration(audioRef.current.duration);
     }
-  };
-
-  const handleSeek = (time: number) => {
-    if (audioRef.current) {
-        audioRef.current.currentTime = time;
-        setDuration(audioRef.current.duration);
-        setProgress((time / audioRef.current.duration) * 100);
-    }
-  };
-
-  // Mock progress interval for songs without audioUrl
-  useEffect(() => {
-      let interval: any;
-      if (isPlaying && (!currentSong?.audioUrl) && currentSong) {
-          interval = setInterval(() => {
-              setProgress(p => (p >= 100 ? 0 : p + 0.5));
-          }, 1000);
-      }
-      return () => clearInterval(interval);
-  }, [isPlaying, currentSong]);
-
-
-  const formatTime = (seconds: number) => {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   if (!currentSong) return null;
 
   return (
     <>
-      {/* Main Player Bar */}
-      <div className="h-[84px] md:h-[88px] bg-white/95 backdrop-blur-2xl backdrop-saturate-150 border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 flex items-center px-3 md:px-6 shadow-lg transition-all duration-300 justify-between select-none">
+      <div className={`h-[88px] bg-white/95 backdrop-blur-2xl border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 flex items-center px-4 md:px-6 shadow-lg transition-transform duration-500 ${isLyricsOpen ? 'translate-y-full' : 'translate-y-0'}`}>
+        <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={() => setIsPlaying(false)} />
         
-        {/* Mobile Progress Line at top */}
-        <div className="md:hidden absolute top-0 left-0 right-0 h-[3px] bg-gray-100">
-            <div className="h-full bg-apple-accent transition-all duration-200" style={{ width: `${progress}%` }}></div>
-        </div>
-
-        <audio 
-          ref={audioRef} 
-          onTimeUpdate={handleTimeUpdate} 
-          onEnded={() => setIsPlaying(false)}
-        />
-        
-        {/* Track Info */}
-        <div className="flex items-center flex-1 md:w-1/4 md:min-w-[200px] min-w-0 group overflow-hidden">
-          <div 
-            onClick={() => setIsLyricsOpen(true)}
-            className="h-11 w-11 md:h-12 md:w-12 rounded-lg overflow-hidden shadow-sm bg-gray-200 mr-3 relative cursor-pointer hover:scale-105 active:scale-90 transition-transform duration-200 flex-shrink-0"
-          >
+        {/* Track Info & Cover - 点击展开 */}
+        <div 
+          onClick={() => onSetLyricsOpen(true)}
+          className="flex items-center flex-1 md:w-1/4 min-w-0 group cursor-pointer active:scale-95 transition-transform duration-200"
+        >
+          <div className="h-12 w-12 rounded-lg overflow-hidden shadow-sm bg-gray-200 mr-3 flex-shrink-0 relative">
              <img src={currentSong.coverUrl} alt="Cover" className="h-full w-full object-cover" />
-             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
-                <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-100" />
+             <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Maximize2 size={16} className="text-white" />
              </div>
           </div>
-          <div className="flex flex-col overflow-hidden justify-center min-w-0 pr-2">
-            <h4 className="text-sm font-semibold text-gray-900 truncate leading-tight">{currentSong.title}</h4>
-            <p className="text-xs text-gray-500 truncate leading-tight mt-0.5">{currentSong.artist}</p>
+          <div className="flex flex-col overflow-hidden min-w-0">
+            <h4 className="text-sm font-semibold text-gray-900 truncate">{currentSong.title}</h4>
+            <p className="text-xs text-gray-500 truncate">{currentSong.artist}</p>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex flex-col items-center justify-center md:flex-1 max-w-2xl mx-1 md:mx-auto">
-          <div className="flex items-center space-x-2 md:space-x-6 mb-1">
-            <button className="hidden md:block text-gray-400 hover:text-apple-accent transition-colors"><Shuffle size={18} /></button>
-            
-            <button onClick={onPrev} className="text-gray-800 hover:scale-105 active:scale-95 transition-transform p-1">
-                <SkipBack size={22} className="md:w-6 md:h-6" fill="currentColor" />
+        <div className="flex flex-col items-center justify-center flex-1 max-w-xl">
+          <div className="flex items-center space-x-6">
+            <button onClick={onPrev} className="text-gray-800 active:scale-90 transition-transform"><SkipBack size={22} fill="currentColor" /></button>
+            <button onClick={togglePlay} className="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center active:scale-90 transition-transform">
+              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
             </button>
-            
-            <button 
-              onClick={togglePlay} 
-              className="h-10 w-10 md:h-9 md:w-9 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-full flex items-center justify-center transition-all shadow-sm hover:scale-105 active:scale-95"
-            >
-              {isPlaying ? <Pause size={18} className="md:w-[18px]" fill="currentColor" /> : <Play size={18} className="md:w-[18px] ml-0.5" fill="currentColor" />}
-            </button>
-            
-            <button onClick={onNext} className="text-gray-800 hover:scale-105 active:scale-95 transition-transform p-1">
-                <SkipForward size={22} className="md:w-6 md:h-6" fill="currentColor" />
-            </button>
-            
-            <button className="hidden md:block text-gray-400 hover:text-apple-accent transition-colors"><Repeat size={18} /></button>
+            <button onClick={onNext} className="text-gray-800 active:scale-90 transition-transform"><SkipForward size={22} fill="currentColor" /></button>
           </div>
-          
-          {/* Desktop Progress Bar */}
-          <div className="w-full hidden md:flex items-center space-x-3 group">
-            <span className="text-[10px] text-gray-500 font-medium tabular-nums w-8 text-right">
-               {audioRef.current ? formatTime(audioRef.current.currentTime) : formatTime((progress / 100) * duration)}
-            </span>
-            <div className="flex-1 h-1 bg-gray-300 rounded-full relative cursor-pointer overflow-hidden group/slider w-24 md:w-auto">
-              <div 
-                  className="h-full bg-apple-gray rounded-full absolute top-0 left-0 group-hover/slider:bg-apple-accent transition-colors" 
-                  style={{ width: `${progress}%` }}
-              />
-              <input 
-                type="range" min="0" max="100" 
-                value={progress}
-                onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    const time = (val / 100) * duration;
-                    handleSeek(time);
-                }}
-                className="absolute inset-0 w-full opacity-0 cursor-pointer"
-              />
+          <div className="w-full mt-2 hidden md:flex items-center space-x-3">
+            <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-full bg-apple-accent" style={{ width: `${progress}%` }} />
             </div>
-            <span className="text-[10px] text-gray-500 font-medium tabular-nums w-8">
-              {formatTime(duration)}
-            </span>
           </div>
         </div>
 
-        {/* Volume & Extras */}
-        <div className="flex items-center justify-end md:w-1/4 space-x-2 md:space-x-4 ml-2 flex-shrink-0">
+        {/* Lyrics Toggle Button */}
+        <div className="flex items-center justify-end md:w-1/4">
           <button 
-            className={`text-gray-500 hover:text-apple-accent transition-colors ${isLyricsOpen ? 'text-apple-accent' : ''}`}
-            onClick={() => setIsLyricsOpen(!isLyricsOpen)}
+            onClick={() => onSetLyricsOpen(true)}
+            className="text-[10px] border border-gray-300 px-2 py-1 rounded font-bold hover:bg-gray-50 active:scale-95 transition-all"
           >
-              <span className="text-[10px] border border-current px-2 py-0.5 rounded font-bold whitespace-nowrap active:bg-gray-100 active:scale-95 inline-block transition-transform">LYRICS</span>
+            LYRICS
           </button>
-          <div className="hidden md:flex items-center space-x-2 w-24 group">
-              <Volume2 size={18} className="text-gray-500" />
-              <input 
-                  type="range" 
-                  min="0" 
-                  max="1" 
-                  step="0.01" 
-                  value={volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-full h-1 bg-gray-300 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:opacity-0 group-hover:[&::-webkit-slider-thumb]:opacity-100"
-              />
-          </div>
         </div>
       </div>
 
-      {/* Full Screen Lyrics View Overlay */}
       {isLyricsOpen && (
         <LyricsView 
           song={currentSong}
-          currentTime={audioRef.current?.currentTime || ((progress / 100) * duration)}
-          duration={duration}
+          currentTime={audioRef.current?.currentTime || 0}
+          duration={duration || 180}
           isPlaying={isPlaying}
           onPlayPause={togglePlay}
-          onNext={() => onNext && onNext()}
-          onPrev={() => onPrev && onPrev()}
+          onNext={() => onNext?.()}
+          onPrev={() => onPrev?.()}
           volume={volume}
           onVolumeChange={setVolume}
-          onClose={() => setIsLyricsOpen(false)}
-          onSeek={handleSeek}
+          onClose={() => onSetLyricsOpen(false)}
+          onSeek={(t) => audioRef.current && (audioRef.current.currentTime = t)}
           isLiked={isLiked}
           onLikeToggle={onLikeToggle}
         />
