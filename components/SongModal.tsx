@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Song } from '../types';
-import { X, Plus, Save, Loader2 } from 'lucide-react';
+import { X, Plus, Save, Loader2, Trash2 } from 'lucide-react';
 import { getSongMetadata } from '../services/geminiService';
 
 interface SongModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (song: Song) => void;
+  onDelete?: (song: Song) => void;
   editingSong?: Song | null;
 }
 
-const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, editingSong }) => {
+const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, onDelete, editingSong }) => {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [album, setAlbum] = useState('');
@@ -55,6 +56,15 @@ const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, editingS
     onSave(updatedSong);
     setLoading(false);
     onClose();
+  };
+
+  const handleDelete = () => {
+    if (editingSong && onDelete) {
+      if (window.confirm(`Are you sure you want to delete "${editingSong.title}"?`)) {
+        onDelete(editingSong);
+        onClose();
+      }
+    }
   };
 
   useEffect(() => {
@@ -118,7 +128,7 @@ const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, editingS
                 <input value={lyricsUrl} onChange={e => setLyricsUrl(e.target.value)} className="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-apple-accent focus:outline-none" placeholder="https://..." />
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-col space-y-3">
                 <button 
                     type="submit" 
                     disabled={loading}
@@ -136,6 +146,17 @@ const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, editingS
                         </>
                     )}
                 </button>
+
+                {editingSong && !loading && (
+                    <button 
+                        type="button"
+                        onClick={handleDelete}
+                        className="w-full bg-red-50 text-red-600 hover:bg-red-100 font-medium py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-colors border border-red-100"
+                    >
+                        <Trash2 size={16} />
+                        <span>Delete from Library</span>
+                    </button>
+                )}
             </div>
         </form>
       </div>

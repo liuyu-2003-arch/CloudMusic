@@ -67,13 +67,12 @@ export default function App() {
   }, []);
 
   const handleDeleteSong = async (song: Song) => {
-      if (!window.confirm(`Are you sure you want to delete "${song.title}"?`)) return;
       setMyLibrary(prev => prev.filter(s => s.id !== song.id));
       await supabase.from('songs').delete().eq('id', song.id);
+      if (currentSong?.id === song.id) setCurrentSong(null);
   };
 
   const handleSaveSong = async (song: Song) => {
-    // Check if it's an update or a new song
     const isNew = !myLibrary.some(s => s.id === song.id);
     
     if (isNew) {
@@ -101,7 +100,6 @@ export default function App() {
         description: song.description
       }).eq('id', song.id);
 
-      // If the edited song is currently playing, update the player state
       if (currentSong?.id === song.id) {
         setCurrentSong(song);
       }
@@ -134,8 +132,16 @@ export default function App() {
              <div className="md:hidden font-bold text-xl text-gray-900">CloudMusic</div>
              <div className="hidden md:block"></div>
              
-             <div className="flex items-center space-x-5">
-                {isEditMode && isAdmin && <div className="px-3 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-full uppercase tracking-wide">Editing</div>}
+             <div className="flex items-center space-x-4">
+                {isEditMode && isAdmin && (
+                  <button 
+                    onClick={() => setIsEditMode(false)}
+                    className="flex items-center space-x-2 px-4 py-1.5 bg-apple-accent text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-lg hover:bg-red-600 transition-all active:scale-95 animate-in fade-in slide-in-from-right-2"
+                  >
+                    <Check size={14} />
+                    <span>Done Editing</span>
+                  </button>
+                )}
                 {user ? (
                     <div className="relative" ref={userMenuRef}>
                         <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center space-x-2 focus:outline-none">
@@ -150,7 +156,9 @@ export default function App() {
                                {isAdmin && (
                                  <>
                                    <button onClick={() => { setEditingSong(null); setIsModalOpen(true); setIsUserMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-apple-accent flex items-center space-x-2"><Plus size={16} /><span>Add Music</span></button>
-                                   <button onClick={() => { setIsEditMode(!isEditMode); setIsUserMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-apple-accent flex items-center space-x-2">{isEditMode ? <Check size={16} className="text-green-500" /> : <Edit3 size={16} />}<span>{isEditMode ? 'Done Editing' : 'Edit Library'}</span></button>
+                                   {!isEditMode && (
+                                     <button onClick={() => { setIsEditMode(true); setIsUserMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-apple-accent flex items-center space-x-2"><Edit3 size={16} /><span>Edit Library</span></button>
+                                   )}
                                  </>
                                )}
                                <button onClick={async () => { await supabase.auth.signOut(); setIsUserMenuOpen(false); setIsEditMode(false); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 flex items-center space-x-2"><LogOut size={16} /><span>Sign Out</span></button>
@@ -172,7 +180,6 @@ export default function App() {
                   songs={activeView === View.LIKED ? myLibrary.filter(s => likedSongIds.has(s.id)) : myLibrary} 
                   onPlay={setCurrentSong} 
                   isEditMode={isEditMode && isAdmin}
-                  onDelete={handleDeleteSong}
                   onEdit={(s) => { setEditingSong(s); setIsModalOpen(true); }}
                 />
               )}
@@ -195,6 +202,7 @@ export default function App() {
         isOpen={isModalOpen} 
         onClose={() => { setIsModalOpen(false); setEditingSong(null); }} 
         onSave={handleSaveSong} 
+        onDelete={handleDeleteSong}
         editingSong={editingSong}
       />
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
