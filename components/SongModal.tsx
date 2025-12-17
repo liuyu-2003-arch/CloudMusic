@@ -128,11 +128,22 @@ const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, onDelete
                 <input value={lyricsUrl} onChange={e => setLyricsUrl(e.target.value)} className="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-apple-accent focus:outline-none" placeholder="https://..." />
             </div>
 
-            <div className="pt-2 flex flex-col space-y-3">
+            <div className="pt-2 flex items-center gap-3">
+                {editingSong && !loading && (
+                    <button 
+                        type="button"
+                        onClick={handleDelete}
+                        className="p-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100 shrink-0"
+                        title="Delete from Library"
+                    >
+                        <Trash2 size={20} />
+                    </button>
+                )}
+                
                 <button 
                     type="submit" 
                     disabled={loading}
-                    className={`w-full ${editingSong ? 'bg-blue-600 hover:bg-blue-700' : 'bg-apple-accent hover:bg-red-600'} text-white font-medium py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-colors disabled:opacity-70`}
+                    className={`flex-1 ${editingSong ? 'bg-blue-600 hover:bg-blue-700' : 'bg-apple-accent hover:bg-red-600'} text-white font-medium py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-colors disabled:opacity-70`}
                 >
                     {loading ? (
                         <>
@@ -146,17 +157,6 @@ const SongModal: React.FC<SongModalProps> = ({ isOpen, onClose, onSave, onDelete
                         </>
                     )}
                 </button>
-
-                {editingSong && !loading && (
-                    <button 
-                        type="button"
-                        onClick={handleDelete}
-                        className="w-full bg-red-50 text-red-600 hover:bg-red-100 font-medium py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-colors border border-red-100"
-                    >
-                        <Trash2 size={16} />
-                        <span>Delete from Library</span>
-                    </button>
-                )}
             </div>
         </form>
       </div>
