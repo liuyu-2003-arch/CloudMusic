@@ -11,10 +11,13 @@ interface MusicGridProps {
 }
 
 const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode = false, onEdit }) => {
+  // Format title to remove underscores and improve presentation
+  const formattedTitle = title.replace(/_/g, ' ');
+
   return (
     <div className="mb-10">
       <div className="flex items-center justify-between mb-4 px-1">
-        <h2 className="text-2xl font-bold text-apple-text">{title}</h2>
+        <h2 className="text-2xl font-bold text-apple-text capitalize">{formattedTitle.toLowerCase()}</h2>
         {!isEditMode && <button className="text-apple-accent text-sm font-medium hover:underline">See All</button>}
       </div>
       
