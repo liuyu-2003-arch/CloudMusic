@@ -2,15 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#f5f5f7" />
+    
+    <!-- iOS Web App Capable -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CloudMusic">
+
     <title>CloudMusic</title>
     
     <!-- Favicon (SVG Data URI) -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fa2d48'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E">
     
-    <!-- Apple Touch Icon (For Home Screen) -->
-    <link rel="apple-touch-icon" href="https://placehold.co/192x192/fa2d48/ffffff/png?text=%E2%99%AB">
+    <!-- Apple Touch Icon (For Home Screen) - using simple text 'CM' to avoid encoding errors -->
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/fa2d48/ffffff/png?text=CM">
     
     <!-- Web App Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -56,6 +62,7 @@
       body {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        overscroll-behavior-y: none; /* Prevent bounce effect on mobile */
       }
     </style>
   <script type="importmap">
@@ -71,7 +78,7 @@
 }
 </script>
 </head>
-  <body class="bg-apple-bg text-apple-text overflow-hidden">
+  <body class="bg-apple-bg text-apple-text overflow-hidden select-none">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
