@@ -23,7 +23,7 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
         {songs.map((song) => (
           <div key={song.id} className="group relative flex flex-col cursor-pointer" onClick={() => !isEditMode && onPlay(song)}>
             {/* Cover Image Container */}
-            <div className={`relative aspect-square w-full overflow-hidden rounded-xl shadow-md bg-gray-200 mb-3 transition-transform duration-300 ${isEditMode ? 'scale-95 opacity-90' : 'group-hover:scale-[1.02]'}`}>
+            <div className={`relative aspect-square w-full overflow-hidden rounded-xl shadow-md bg-gray-200 mb-3 transition-all duration-300 ${isEditMode ? 'scale-95 opacity-90 ring-2 ring-red-100' : 'group-hover:scale-[1.02]'}`}>
               <img 
                 src={song.coverUrl} 
                 alt={song.title} 
@@ -42,13 +42,14 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
 
               {/* Delete Button (Edit Mode) */}
               {isEditMode && (
-                  <div className="absolute inset-0 bg-black/10 flex items-center justify-center animate-in fade-in duration-200">
+                  <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] flex items-center justify-center animate-in fade-in duration-200">
                       <button 
                         onClick={(e) => {
                             e.stopPropagation();
                             onDelete && onDelete(song);
                         }}
-                        className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 shadow-lg transform hover:scale-110 transition-all"
+                        className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 shadow-xl transform hover:scale-110 active:scale-95 transition-all"
+                        aria-label="Delete song"
                       >
                           <Trash2 size={24} />
                       </button>

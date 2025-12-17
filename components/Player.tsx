@@ -96,7 +96,14 @@ const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev, isLiked, o
 
   return (
     <>
-      <div className="h-[88px] bg-white/95 backdrop-blur-xl border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 flex items-center px-6 shadow-lg transition-all duration-300">
+      {/* Main Player Bar */}
+      <div className="h-[84px] md:h-[88px] bg-white/95 backdrop-blur-2xl backdrop-saturate-150 border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 flex items-center px-3 md:px-6 shadow-lg transition-all duration-300 justify-between select-none">
+        
+        {/* Mobile Progress Line at top - Increased height for visibility */}
+        <div className="md:hidden absolute top-0 left-0 right-0 h-[3px] bg-gray-100">
+            <div className="h-full bg-apple-accent transition-all duration-200" style={{ width: `${progress}%` }}></div>
+        </div>
+
         <audio 
           ref={audioRef} 
           onTimeUpdate={handleTimeUpdate} 
@@ -104,43 +111,51 @@ const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev, isLiked, o
         />
         
         {/* Track Info */}
-        <div className="flex items-center w-1/4 min-w-[200px] group">
+        <div className="flex items-center flex-1 md:w-1/4 md:min-w-[200px] min-w-0 group overflow-hidden">
           <div 
             onClick={() => setIsLyricsOpen(true)}
-            className="h-12 w-12 rounded-md overflow-hidden shadow-sm bg-gray-200 mr-4 relative cursor-pointer hover:scale-105 transition-transform"
+            className="h-11 w-11 md:h-12 md:w-12 rounded-lg overflow-hidden shadow-sm bg-gray-200 mr-3 relative cursor-pointer hover:scale-105 transition-transform flex-shrink-0 active:scale-95"
           >
              <img src={currentSong.coverUrl} alt="Cover" className="h-full w-full object-cover" />
              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
                 <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-100" />
              </div>
           </div>
-          <div className="flex flex-col overflow-hidden">
-            <h4 className="text-sm font-semibold text-gray-900 truncate">{currentSong.title}</h4>
-            <p className="text-xs text-gray-500 truncate">{currentSong.artist}</p>
+          <div className="flex flex-col overflow-hidden justify-center min-w-0 pr-2">
+            <h4 className="text-sm font-semibold text-gray-900 truncate leading-tight">{currentSong.title}</h4>
+            <p className="text-xs text-gray-500 truncate leading-tight mt-0.5">{currentSong.artist}</p>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto">
-          <div className="flex items-center space-x-6 mb-1">
-            <button className="text-gray-400 hover:text-apple-accent transition-colors"><Shuffle size={18} /></button>
-            <button onClick={onPrev} className="text-gray-800 hover:scale-105 transition-transform"><SkipBack size={24} fill="currentColor" /></button>
+        <div className="flex flex-col items-center justify-center md:flex-1 max-w-2xl mx-1 md:mx-auto">
+          <div className="flex items-center space-x-2 md:space-x-6 mb-1">
+            <button className="hidden md:block text-gray-400 hover:text-apple-accent transition-colors"><Shuffle size={18} /></button>
+            
+            <button onClick={onPrev} className="text-gray-800 hover:scale-105 active:scale-95 transition-transform p-1">
+                <SkipBack size={22} className="md:w-6 md:h-6" fill="currentColor" />
+            </button>
+            
             <button 
               onClick={togglePlay} 
-              className="h-9 w-9 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-full flex items-center justify-center transition-all shadow-sm hover:scale-105"
+              className="h-10 w-10 md:h-9 md:w-9 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-full flex items-center justify-center transition-all shadow-sm hover:scale-105 active:scale-95"
             >
-              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+              {isPlaying ? <Pause size={18} className="md:w-[18px]" fill="currentColor" /> : <Play size={18} className="md:w-[18px] ml-0.5" fill="currentColor" />}
             </button>
-            <button onClick={onNext} className="text-gray-800 hover:scale-105 transition-transform"><SkipForward size={24} fill="currentColor" /></button>
-            <button className="text-gray-400 hover:text-apple-accent transition-colors"><Repeat size={18} /></button>
+            
+            <button onClick={onNext} className="text-gray-800 hover:scale-105 active:scale-95 transition-transform p-1">
+                <SkipForward size={22} className="md:w-6 md:h-6" fill="currentColor" />
+            </button>
+            
+            <button className="hidden md:block text-gray-400 hover:text-apple-accent transition-colors"><Repeat size={18} /></button>
           </div>
           
-          {/* Progress Bar */}
-          <div className="w-full flex items-center space-x-3 group">
+          {/* Desktop Progress Bar */}
+          <div className="w-full hidden md:flex items-center space-x-3 group">
             <span className="text-[10px] text-gray-500 font-medium tabular-nums w-8 text-right">
                {audioRef.current ? formatTime(audioRef.current.currentTime) : formatTime((progress / 100) * duration)}
             </span>
-            <div className="flex-1 h-1 bg-gray-300 rounded-full relative cursor-pointer overflow-hidden group/slider">
+            <div className="flex-1 h-1 bg-gray-300 rounded-full relative cursor-pointer overflow-hidden group/slider w-24 md:w-auto">
               <div 
                   className="h-full bg-apple-gray rounded-full absolute top-0 left-0 group-hover/slider:bg-apple-accent transition-colors" 
                   style={{ width: `${progress}%` }}
@@ -163,14 +178,14 @@ const Player: React.FC<PlayerProps> = ({ currentSong, onNext, onPrev, isLiked, o
         </div>
 
         {/* Volume & Extras */}
-        <div className="w-1/4 flex items-center justify-end space-x-4">
+        <div className="flex items-center justify-end md:w-1/4 space-x-2 md:space-x-4 ml-2 flex-shrink-0">
           <button 
             className={`text-gray-500 hover:text-apple-accent transition-colors ${isLyricsOpen ? 'text-apple-accent' : ''}`}
             onClick={() => setIsLyricsOpen(!isLyricsOpen)}
           >
-              <span className="text-[10px] border border-current px-1 rounded font-bold">LYRICS</span>
+              <span className="text-[10px] border border-current px-2 py-0.5 rounded font-bold whitespace-nowrap active:bg-gray-100">LYRICS</span>
           </button>
-          <div className="flex items-center space-x-2 w-24 group">
+          <div className="hidden md:flex items-center space-x-2 w-24 group">
               <Volume2 size={18} className="text-gray-500" />
               <input 
                   type="range" 
