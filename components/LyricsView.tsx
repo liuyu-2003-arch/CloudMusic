@@ -57,7 +57,8 @@ const LyricsView: React.FC<LyricsViewProps> = ({
     if (scrollRef.current) {
       const activeEl = scrollRef.current.children[activeIndex] as HTMLElement;
       if (activeEl) {
-        scrollRef.current.scrollTo({ top: activeEl.offsetTop - 200, behavior: 'smooth' });
+        // 让高亮行永远在视口靠上的位置（模拟“第二行”位置）
+        scrollRef.current.scrollTo({ top: activeEl.offsetTop - 120, behavior: 'smooth' });
       }
     }
   }, [activeIndex]);
@@ -77,7 +78,7 @@ const LyricsView: React.FC<LyricsViewProps> = ({
            onClick={handleClose} 
            className="bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-all active:scale-75"
          >
-            <ChevronDown size={28} />
+            <ChevronDown size={24} />
          </button>
          <div className="text-center opacity-60">
              <span className="block text-[10px] font-bold uppercase tracking-widest">Playing From</span>
@@ -87,24 +88,24 @@ const LyricsView: React.FC<LyricsViewProps> = ({
             onClick={handleLike}
             className={`p-2 transition-all active:scale-75 ${isLiked ? 'text-apple-accent' : 'text-white/30'}`}
          >
-            <Heart size={28} fill={isLiked ? "currentColor" : "none"} className={popHeart ? 'heart-animate' : ''} />
+            <Heart size={24} fill={isLiked ? "currentColor" : "none"} className={popHeart ? 'heart-animate' : ''} />
          </button>
       </div>
 
       {/* Lyrics Main Scroll Area */}
       <div 
         ref={scrollRef}
-        className="relative z-10 flex-1 overflow-y-auto px-8 py-10 space-y-10 text-center scroll-smooth no-scrollbar"
-        style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)' }}
+        className="relative z-10 flex-1 overflow-y-auto px-8 py-10 space-y-12 text-left scroll-smooth no-scrollbar"
+        style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 80%, transparent)' }}
       >
-          <div className="h-[20vh]"></div> {/* Top Spacer */}
+          <div className="h-[10vh]"></div> {/* Top Spacer adjusted for "2nd line" feel */}
           {lyrics.map((line, idx) => (
               <p 
                 key={idx} 
-                className={`text-3xl md:text-5xl font-bold transition-all duration-700 cursor-pointer ${
+                className={`text-3xl md:text-5xl font-bold transition-all duration-700 cursor-pointer max-w-2xl mx-auto leading-tight ${
                   idx === activeIndex 
                   ? 'text-white scale-100 opacity-100 blur-none' 
-                  : 'text-white/20 scale-90 opacity-40 blur-[1px] hover:opacity-60'
+                  : 'text-white/20 scale-95 opacity-30 blur-[1px] hover:opacity-50'
                 }`}
                 onClick={() => onSeek((idx / lyrics.length) * duration)}
               >
@@ -114,13 +115,50 @@ const LyricsView: React.FC<LyricsViewProps> = ({
           <div className="h-[40vh]"></div> {/* Bottom Spacer */}
       </div>
 
-      {/* Re-designed Footer Controls */}
-      <div className="relative z-20 px-6 pt-6 pb-12 md:px-12 bg-black/30 backdrop-blur-2xl border-t border-white/5">
-          <div className="max-w-5xl mx-auto flex flex-col gap-6">
+      {/* Compact Re-designed Footer Controls */}
+      <div className="relative z-20 px-6 pt-4 pb-10 md:px-12 bg-black/40 backdrop-blur-3xl border-t border-white/5">
+          <div className="max-w-4xl mx-auto flex flex-col gap-5">
               
-              {/* Progress Slider Section */}
-              <div className="w-full space-y-2">
-                  <div className="relative h-1.5 w-full bg-white/20 rounded-full cursor-pointer group">
+              {/* Top Row: Meta & Controls & Actions */}
+              <div className="flex items-center justify-between gap-4">
+                  {/* Left: Metadata */}
+                  <div className="flex items-center gap-4 w-1/3 min-w-0">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shadow-2xl flex-shrink-0 bg-gray-800">
+                          <img src={song.coverUrl} className="w-full h-full object-cover" alt="" />
+                      </div>
+                      <div className="min-w-0">
+                          <h2 className="font-bold truncate text-base leading-tight">{song.title}</h2>
+                          <h3 className="text-xs text-white/50 truncate font-medium mt-0.5">{song.artist}</h3>
+                      </div>
+                  </div>
+
+                  {/* Center: Playback Core Controls (Smaller, matching home player) */}
+                  <div className="flex items-center gap-6 md:gap-8">
+                      <button onClick={onPrev} className="text-white/60 hover:text-white active:scale-75 transition-all">
+                          <SkipBack className="w-6 h-6" fill="currentColor" />
+                      </button>
+                      <button 
+                        onClick={onPlayPause} 
+                        className="w-12 h-12 md:w-14 md:h-14 bg-white text-black rounded-full flex items-center justify-center active:scale-90 transition-transform shadow-lg hover:scale-105"
+                      >
+                          {isPlaying ? (
+                              <Pause className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
+                          ) : (
+                              <Play className="w-5 h-5 md:w-6 md:h-6 ml-1" fill="currentColor" />
+                          )}
+                      </button>
+                      <button onClick={onNext} className="text-white/60 hover:text-white active:scale-75 transition-all">
+                          <SkipForward className="w-6 h-6" fill="currentColor" />
+                      </button>
+                  </div>
+
+                  {/* Right: Spacing */}
+                  <div className="w-1/3"></div>
+              </div>
+
+              {/* Bottom Row: Progress Slider (Moved below buttons) */}
+              <div className="w-full space-y-1.5 px-1">
+                  <div className="relative h-1.5 w-full bg-white/10 rounded-full cursor-pointer group">
                       <div 
                         className="absolute h-full bg-white/80 rounded-full transition-all duration-300" 
                         style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
@@ -128,58 +166,15 @@ const LyricsView: React.FC<LyricsViewProps> = ({
                       <input 
                         type="range" min="0" max={duration || 100} value={currentTime}
                         onChange={(e) => onSeek(parseFloat(e.target.value))}
-                        className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
                   </div>
-                  <div className="flex justify-between text-[10px] font-bold text-white/40 tabular-nums">
+                  <div className="flex justify-between text-[10px] font-bold text-white/30 tabular-nums uppercase tracking-tighter">
                       <span>{formatTime(currentTime)}</span>
                       <span>{formatTime(duration)}</span>
                   </div>
               </div>
 
-              {/* Main Interaction Row */}
-              <div className="flex items-center justify-between gap-4">
-                  
-                  {/* Left: Song Metadata (Winter/Artist) */}
-                  <div className="flex items-center gap-4 w-1/3 min-w-0">
-                      <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden shadow-2xl flex-shrink-0 bg-gray-800">
-                          <img src={song.coverUrl} className="w-full h-full object-cover" alt="" />
-                      </div>
-                      <div className="min-w-0">
-                          <h2 className="font-bold truncate text-base md:text-xl leading-tight">{song.title}</h2>
-                          <h3 className="text-xs md:text-sm text-white/50 truncate font-medium mt-0.5">{song.artist}</h3>
-                      </div>
-                  </div>
-
-                  {/* Center: Playback Core Controls */}
-                  <div className="flex items-center gap-6 md:gap-10">
-                      <button onClick={onPrev} className="text-white/70 hover:text-white active:scale-75 transition-all">
-                          {/* Fix: Lucide icons do not support md:size prop. Use responsive className instead. */}
-                          <SkipBack className="w-7 h-7 md:w-9 md:h-9" fill="currentColor" />
-                      </button>
-                      <button 
-                        onClick={onPlayPause} 
-                        className="w-14 h-14 md:w-20 md:h-20 bg-white text-black rounded-full flex items-center justify-center active:scale-90 transition-transform shadow-2xl hover:scale-105"
-                      >
-                          {isPlaying ? (
-                              /* Fix: Lucide icons do not support md:size prop. Use responsive className instead. */
-                              <Pause className="w-7 h-7 md:w-9 md:h-9" fill="currentColor" />
-                          ) : (
-                              /* Fix: Lucide icons do not support md:size prop. Use responsive className instead. */
-                              <Play className="w-7 h-7 md:w-9 md:h-9 ml-1.5" fill="currentColor" />
-                          )}
-                      </button>
-                      <button onClick={onNext} className="text-white/70 hover:text-white active:scale-75 transition-all">
-                          {/* Fix: Lucide icons do not support md:size prop. Use responsive className instead. */}
-                          <SkipForward className="w-7 h-7 md:w-9 md:h-9" fill="currentColor" />
-                      </button>
-                  </div>
-
-                  {/* Right: Extra Spacing / Actions */}
-                  <div className="w-1/3 flex justify-end">
-                      {/* Reserved for volume or airplay icons if needed */}
-                  </div>
-              </div>
           </div>
       </div>
     </div>
