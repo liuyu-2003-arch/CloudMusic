@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import MusicGrid from './components/MusicGrid';
 import Player from './components/Player';
@@ -6,7 +6,7 @@ import SongModal from './components/SongModal';
 import LoginModal from './components/LoginModal';
 import { MOCK_SONGS } from './constants';
 import { Song, View } from './types';
-import { LogIn, LogOut, ChevronDown, Plus, Edit3, Check } from 'lucide-react';
+import { LogIn, LogOut, ChevronDown, Plus, Edit3, Check, ArrowLeft } from 'lucide-react';
 import { supabase, isUserAdmin } from './services/supabaseClient';
 
 export default function App() {
@@ -21,6 +21,10 @@ export default function App() {
   const [likedSongIds, setLikedSongIds] = useState<Set<string>>(new Set());
   const [isLyricsOpen, setIsLyricsOpen] = useState(false);
   
+  // Filtering state for Artists/Albums sub-views
+  const [filterType, setFilterType] = useState<'artist' | 'album' | null>(null);
+  const [filterValue, setFilterValue] = useState<string | null>(null);
+
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -65,6 +69,76 @@ export default function App() {
     };
     fetchSongs();
   }, []);
+
+  // Derived data based on active view and filters
+  const displayData = useMemo(() => {
+    let base = [...myLibrary];
+
+    // Handle sub-filters first
+    if (filterType && filterValue) {
+      const filtered = base.filter(s => filterType === 'artist' ? s.artist === filterValue : s.album === filterValue);
+      return { 
+        title: filterValue, 
+        songs: filtered.sort((a, b) => a.title.localeCompare(b.title)),
+        isCategory: false 
+      };
+    }
+
+    switch (activeView) {
+      case View.RECENTLY_ADDED:
+        return { 
+          title: "Recently Added", 
+          songs: base.sort((a, b) => b.addedAt - a.addedAt), 
+          isCategory: false 
+        };
+
+      case View.SONGS:
+        return { 
+          title: "Songs", 
+          songs: base.sort((a, b) => a.title.localeCompare(b.title)), 
+          isCategory: false 
+        };
+
+      case View.LIKED:
+        return { 
+          title: "Liked Songs", 
+          songs: base.filter(s => likedSongIds.has(s.id)).sort((a, b) => a.title.localeCompare(b.title)), 
+          isCategory: false 
+        };
+
+      case View.ARTISTS:
+        const artistMap = new Map<string, Song>();
+        base.forEach(s => {
+          if (!artistMap.has(s.artist)) {
+            artistMap.set(s.artist, { ...s, title: s.artist, description: `${base.filter(x => x.artist === s.artist).length} Songs` });
+          }
+        });
+        return { 
+          title: "Artists", 
+          songs: Array.from(artistMap.values()).sort((a, b) => a.title.localeCompare(b.title)), 
+          isCategory: true,
+          type: 'artist'
+        };
+
+      case View.ALBUMS:
+        const albumMap = new Map<string, Song>();
+        base.forEach(s => {
+          const key = `${s.album}-${s.artist}`;
+          if (!albumMap.has(key)) {
+            albumMap.set(key, { ...s, title: s.album, description: s.artist });
+          }
+        });
+        return { 
+          title: "Albums", 
+          songs: Array.from(albumMap.values()).sort((a, b) => a.title.localeCompare(b.title)), 
+          isCategory: true,
+          type: 'album'
+        };
+
+      default:
+        return { title: "Library", songs: base, isCategory: false };
+    }
+  }, [myLibrary, activeView, likedSongIds, filterType, filterValue]);
 
   const handleDeleteSong = async (song: Song) => {
       setMyLibrary(prev => prev.filter(s => s.id !== song.id));
@@ -115,6 +189,20 @@ export default function App() {
       localStorage.setItem('cloudmusic_liked_ids', JSON.stringify(Array.from(newSet)));
   };
 
+  const handleItemClick = (item: Song) => {
+    if (displayData.isCategory) {
+      setFilterType(displayData.type as any);
+      setFilterValue(item.title);
+    } else {
+      setCurrentSong(item);
+    }
+  };
+
+  const resetFilters = () => {
+    setFilterType(null);
+    setFilterValue(null);
+  };
+
   const isAdmin = isUserAdmin(user?.email);
 
   return (
@@ -123,14 +211,20 @@ export default function App() {
       <div className={`flex h-full w-full bg-apple-bg transition-all duration-500 origin-top ${isLyricsOpen ? 'app-shrink' : 'app-expand'}`}>
         {/* Sidebar */}
         <aside className="hidden md:block w-[260px] flex-shrink-0 z-20">
-          <Sidebar activeView={activeView} onChangeView={(v) => { setActiveView(v); setIsEditMode(false); }} />
+          <Sidebar activeView={activeView} onChangeView={(v) => { setActiveView(v); setIsEditMode(false); resetFilters(); }} />
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 flex flex-col relative h-full overflow-hidden">
           <header className="h-16 flex items-center justify-between px-8 bg-apple-bg/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-200/50">
-             <div className="md:hidden font-bold text-xl text-gray-900">CloudMusic</div>
-             <div className="hidden md:block"></div>
+             <div className="flex items-center space-x-4">
+               {filterValue && (
+                 <button onClick={resetFilters} className="text-apple-accent hover:bg-apple-accent/10 p-2 rounded-full transition-colors">
+                    <ArrowLeft size={20} />
+                 </button>
+               )}
+               <div className="md:hidden font-bold text-xl text-gray-900">CloudMusic</div>
+             </div>
              
              <div className="flex items-center space-x-4">
                 {isEditMode && isAdmin && (
@@ -176,11 +270,12 @@ export default function App() {
             <div className="max-w-[1600px] mx-auto">
               {isLoading ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-apple-accent"></div></div> : (
                 <MusicGrid 
-                  title={activeView} 
-                  songs={activeView === View.LIKED ? myLibrary.filter(s => likedSongIds.has(s.id)) : myLibrary} 
-                  onPlay={setCurrentSong} 
-                  isEditMode={isEditMode && isAdmin}
+                  title={displayData.title} 
+                  songs={displayData.songs} 
+                  onPlay={handleItemClick} 
+                  isEditMode={isEditMode && isAdmin && !displayData.isCategory}
                   onEdit={(s) => { setEditingSong(s); setIsModalOpen(true); }}
+                  onSeeAll={() => { setActiveView(View.SONGS); resetFilters(); }}
                 />
               )}
             </div>

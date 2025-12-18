@@ -8,9 +8,10 @@ interface MusicGridProps {
   onPlay: (song: Song) => void;
   isEditMode?: boolean;
   onEdit?: (song: Song) => void;
+  onSeeAll?: () => void;
 }
 
-const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode = false, onEdit }) => {
+const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode = false, onEdit, onSeeAll }) => {
   // Format title to remove underscores and improve presentation
   const formattedTitle = title.replace(/_/g, ' ');
 
@@ -18,7 +19,14 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
     <div className="mb-10">
       <div className="flex items-center justify-between mb-4 px-1">
         <h2 className="text-2xl font-bold text-apple-text capitalize">{formattedTitle.toLowerCase()}</h2>
-        {!isEditMode && <button className="text-apple-accent text-sm font-medium hover:underline">See All</button>}
+        {!isEditMode && onSeeAll && (
+          <button 
+            onClick={onSeeAll}
+            className="text-apple-accent text-sm font-medium hover:underline"
+          >
+            See All
+          </button>
+        )}
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-8">
