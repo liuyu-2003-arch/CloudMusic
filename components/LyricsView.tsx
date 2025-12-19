@@ -35,6 +35,8 @@ const LyricsView: React.FC<LyricsViewProps> = ({
   const [dragOffset, setDragOffset] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
+  const wheelAccumulator = useRef<number>(0);
+  const wheelResetTimeout = useRef<number | null>(null);
   const isDragging = useRef(false);
 
   // SRT Parsing Logic
@@ -133,7 +135,7 @@ const LyricsView: React.FC<LyricsViewProps> = ({
     }
   }, [activeIndex]);
 
-  // Swipe-to-close Logic
+  // Touch Swipe-to-close Logic
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
   };
@@ -144,13 +146,11 @@ const LyricsView: React.FC<LyricsViewProps> = ({
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - touchStartY.current;
 
-    // Only allow pulling down if at the top of the scrollable area
     const isAtTop = scrollRef.current ? scrollRef.current.scrollTop <= 0 : true;
 
     if (isAtTop && deltaY > 0) {
       isDragging.current = true;
       setDragOffset(deltaY);
-      // Prevent default to stop scrolling while dragging down
       if (e.cancelable) e.preventDefault();
     }
   };
@@ -165,6 +165,36 @@ const LyricsView: React.FC<LyricsViewProps> = ({
     isDragging.current = false;
   };
 
+  // Computer Trackpad / Mouse Wheel Swipe-to-close Logic
+  const handleWheel = (e: React.WheelEvent) => {
+    const isAtTop = scrollRef.current ? scrollRef.current.scrollTop <= 0 : true;
+    
+    // deltaY < 0 means scrolling up (content moves down, swipe down gesture)
+    if (isAtTop && e.deltaY < 0) {
+      // Accumulate negative deltaY to simulate drag
+      wheelAccumulator.current += Math.abs(e.deltaY);
+      setDragOffset(Math.min(wheelAccumulator.current * 0.5, 200));
+
+      if (wheelAccumulator.current > 300) {
+        handleClose();
+        wheelAccumulator.current = 0;
+      }
+
+      // Reset accumulator if user stops scrolling
+      if (wheelResetTimeout.current) window.clearTimeout(wheelResetTimeout.current);
+      wheelResetTimeout.current = window.setTimeout(() => {
+        if (!isClosing) {
+          setDragOffset(0);
+          wheelAccumulator.current = 0;
+        }
+      }, 150);
+    } else if (dragOffset > 0) {
+      // If user scrolls down while drag is active, reset it
+      setDragOffset(0);
+      wheelAccumulator.current = 0;
+    }
+  };
+
   return (
     <div 
       className={`fixed inset-0 z-[100] flex flex-col bg-gray-900 text-white shadow-2xl transition-transform duration-300 ${isClosing ? 'animate-ios-down' : 'animate-ios-up'}`}
@@ -175,6 +205,7 @@ const LyricsView: React.FC<LyricsViewProps> = ({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
     >
       
       {/* Dynamic Background Blur */}
