@@ -32,24 +32,25 @@ const LyricsView: React.FC<LyricsViewProps> = ({
   const [isClosing, setIsClosing] = useState(false);
   const [popHeart, setPopHeart] = useState(false);
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([]);
+  const [dragOffset, setDragOffset] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number | null>(null);
+  const isDragging = useRef(false);
 
   // SRT Parsing Logic
   const parseTimestamp = (timestamp: string): number => {
-    const [hms, ms] = timestamp.split(/[,.]/); // Handle both , and .
+    const [hms, ms] = timestamp.split(/[,.]/); 
     const [h, m, s] = hms.split(':').map(Number);
     return h * 3600 + m * 60 + s + (Number(ms) || 0) / 1000;
   };
 
   const parseSRT = (data: string): LyricLine[] => {
     const lines: LyricLine[] = [];
-    // Split by double newline to get blocks
     const blocks = data.trim().split(/\r?\n\r?\n/);
 
     for (const block of blocks) {
       const parts = block.split(/\r?\n/);
       if (parts.length >= 3) {
-        // Line 1 is index, Line 2 is timestamp, Line 3+ is text
         const timeMatch = parts[1].match(/(\d{2}:\d{2}:\d{2}[,.]\d{3}) --> (\d{2}:\d{2}:\d{2}[,.]\d{3})/);
         if (timeMatch) {
           const start = parseTimestamp(timeMatch[1]);
@@ -69,7 +70,6 @@ const LyricsView: React.FC<LyricsViewProps> = ({
         try {
           const response = await fetch(song.lyricsUrl);
           const text = await response.text();
-          // Check if it looks like SRT
           if (text.includes('-->')) {
             const parsed = parseSRT(text);
             if (parsed.length > 0) {
@@ -82,7 +82,6 @@ const LyricsView: React.FC<LyricsViewProps> = ({
         }
       }
 
-      // Fallback: Generate mock synchronized lyrics if none found
       const mockLines = [
         "Verse 1", `Now playing ${song.title}`, `By ${song.artist}`, 
         "This is a fallback lyric view", "Add an SRT link to see real sync",
@@ -118,15 +117,12 @@ const LyricsView: React.FC<LyricsViewProps> = ({
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // Find current active index based on time
   const activeIndex = parsedLyrics.findIndex(
     line => currentTime >= line.startTime && currentTime < line.endTime
   );
 
-  // Auto-scroll logic to keep high-lighted line at "second line" (approx 120px from top)
   useEffect(() => {
-    if (scrollRef.current && activeIndex !== -1) {
-      // +1 because of the initial spacer div
+    if (scrollRef.current && activeIndex !== -1 && !isDragging.current) {
       const activeEl = scrollRef.current.children[activeIndex + 1] as HTMLElement;
       if (activeEl) {
         scrollRef.current.scrollTo({ 
@@ -137,8 +133,49 @@ const LyricsView: React.FC<LyricsViewProps> = ({
     }
   }, [activeIndex]);
 
+  // Swipe-to-close Logic
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartY.current;
+
+    // Only allow pulling down if at the top of the scrollable area
+    const isAtTop = scrollRef.current ? scrollRef.current.scrollTop <= 0 : true;
+
+    if (isAtTop && deltaY > 0) {
+      isDragging.current = true;
+      setDragOffset(deltaY);
+      // Prevent default to stop scrolling while dragging down
+      if (e.cancelable) e.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffset > 150) {
+      handleClose();
+    } else {
+      setDragOffset(0);
+    }
+    touchStartY.current = null;
+    isDragging.current = false;
+  };
+
   return (
-    <div className={`fixed inset-0 z-[100] flex flex-col bg-gray-900 text-white shadow-2xl ${isClosing ? 'animate-ios-down' : 'animate-ios-up'}`}>
+    <div 
+      className={`fixed inset-0 z-[100] flex flex-col bg-gray-900 text-white shadow-2xl transition-transform duration-300 ${isClosing ? 'animate-ios-down' : 'animate-ios-up'}`}
+      style={{ 
+        transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+        transition: isDragging.current ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)'
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       
       {/* Dynamic Background Blur */}
       <div className="absolute inset-0 z-0 overflow-hidden">
@@ -234,7 +271,6 @@ const LyricsView: React.FC<LyricsViewProps> = ({
                   <div className="w-1/3"></div>
               </div>
 
-              {/* Progress Slider Below Buttons */}
               <div className="w-full space-y-2 px-1">
                   <div className="relative h-1.5 w-full bg-white/10 rounded-full cursor-pointer group">
                       <div 
