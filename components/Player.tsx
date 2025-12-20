@@ -23,6 +23,7 @@ const Player: React.FC<PlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.5);
   const [duration, setDuration] = useState(0);
+  const [isSongChanging, setIsSongChanging] = useState(false);
   
   // Keep the lyrics view rendered during the transition out
   const [shouldRenderLyrics, setShouldRenderLyrics] = useState(false);
@@ -41,6 +42,7 @@ const Player: React.FC<PlayerProps> = ({
 
   useEffect(() => {
     if (currentSong && audioRef.current) {
+      setIsSongChanging(true);
       if (currentSong.audioUrl) {
           audioRef.current.src = currentSong.audioUrl;
           audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
@@ -48,6 +50,7 @@ const Player: React.FC<PlayerProps> = ({
         setIsPlaying(true);
         setDuration(180); // Mock duration for demo
       }
+      setTimeout(() => setIsSongChanging(false), 400);
     }
   }, [currentSong]);
 
@@ -87,6 +90,8 @@ const Player: React.FC<PlayerProps> = ({
 
   if (!currentSong && !lastSong) return null;
 
+  const activeSong = currentSong || lastSong;
+
   return (
     <>
       <div className={`h-[88px] bg-white/95 backdrop-blur-2xl border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 flex items-center px-4 md:px-6 shadow-lg transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isLyricsOpen ? 'translate-y-full' : 'translate-y-0'}`}>
@@ -95,17 +100,17 @@ const Player: React.FC<PlayerProps> = ({
         {/* Track Info & Cover */}
         <div 
           onClick={() => onSetLyricsOpen(true)}
-          className="flex items-center flex-1 md:w-1/4 min-w-0 group cursor-pointer active:scale-95 transition-transform duration-200"
+          className={`flex items-center flex-1 md:w-1/4 min-w-0 group cursor-pointer active:scale-95 transition-all duration-300 ${isSongChanging ? 'opacity-0 translate-x-4' : 'opacity-100 translate-x-0'}`}
         >
           <div className="h-12 w-12 rounded-lg overflow-hidden shadow-sm bg-gray-200 mr-3 flex-shrink-0 relative">
-             <img src={(currentSong || lastSong)?.coverUrl} alt="Cover" className="h-full w-full object-cover" />
+             <img src={activeSong?.coverUrl} alt="Cover" className="h-full w-full object-cover" />
              <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                 <Maximize2 size={16} className="text-white" />
              </div>
           </div>
           <div className="flex flex-col overflow-hidden min-w-0">
-            <h4 className="text-sm font-semibold text-gray-900 truncate">{(currentSong || lastSong)?.title}</h4>
-            <p className="text-xs text-gray-500 truncate">{(currentSong || lastSong)?.artist}</p>
+            <h4 className="text-sm font-semibold text-gray-900 truncate">{activeSong?.title}</h4>
+            <p className="text-xs text-gray-500 truncate">{activeSong?.artist}</p>
           </div>
         </div>
 
@@ -139,10 +144,10 @@ const Player: React.FC<PlayerProps> = ({
         </div>
       </div>
 
-      {shouldRenderLyrics && (currentSong || lastSong) && (
+      {shouldRenderLyrics && activeSong && (
         <LyricsView 
           isOpen={isLyricsOpen}
-          song={(currentSong || lastSong)!}
+          song={activeSong}
           currentTime={currentTime}
           duration={duration || 180}
           isPlaying={isPlaying}
