@@ -1,15 +1,16 @@
 import React from 'react';
-import { Clock, Mic2, Disc, Music, Search, Heart } from 'lucide-react';
+import { Clock, Mic2, Disc, Music, Search, Heart, Sparkles } from 'lucide-react';
 import { LIBRARY_ITEMS } from '../constants';
 import { View } from '../types';
 
 interface SidebarProps {
   activeView: View;
   onChangeView: (view: View) => void;
+  onDiscoverLightMusic?: () => void;
   className?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, className = '' }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, onDiscoverLightMusic, className = '' }) => {
   
   const renderIcon = (name: string) => {
     switch(name) {
@@ -40,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, className =
   return (
     <div className={`flex flex-col h-full bg-apple-sidebar border-r border-gray-200 pt-8 pb-4 px-4 ${className}`}>
       
-      {/* Search Bar - Aesthetic only for layout */}
+      {/* Search Bar */}
       <div className="mb-6 relative">
         <span className="absolute left-3 top-2 text-gray-400">
            <Search size={16} />
@@ -52,24 +53,39 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, className =
         />
       </div>
 
-      <div className="space-y-6 overflow-y-auto flex-1">
+      <div className="space-y-8 overflow-y-auto flex-1 no-scrollbar">
         <div>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">Library</h3>
+          <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-3 px-3">Library</h3>
           <ul className="space-y-1">
             {LIBRARY_ITEMS.map((item) => (
               <li key={item.id}>
                 <button 
                    onClick={() => onChangeView(getTargetView(item.id))}
-                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${isItemActive(item.id) ? 'bg-gray-100 text-apple-accent' : 'text-apple-text hover:bg-apple-hover'}`}
+                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${isItemActive(item.id) ? 'bg-gray-100 text-apple-accent' : 'text-apple-text hover:bg-apple-hover'}`}
                 >
-                  <span className={isItemActive(item.id) ? 'text-apple-accent' : 'text-apple-accent'}>
+                  <span className={`${isItemActive(item.id) ? 'text-apple-accent' : 'text-apple-accent/70 group-hover:text-apple-accent'} transition-colors`}>
                     {renderIcon(item.icon)}
                   </span>
-                  <span className="font-medium text-[15px]">{item.label}</span>
+                  <span className="font-semibold text-[15px] tracking-tight">{item.label}</span>
                 </button>
               </li>
             ))}
           </ul>
+        </div>
+
+        <div>
+          <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-3 px-3">Recommended</h3>
+          <button 
+            onClick={onDiscoverLightMusic}
+            className="w-[calc(100%-16px)] mx-2 p-4 rounded-xl bg-gradient-to-br from-indigo-500/10 to-apple-accent/10 border border-apple-accent/5 hover:border-apple-accent/20 transition-all group relative overflow-hidden active:scale-95"
+          >
+            <div className="relative z-10 flex flex-col items-start text-left">
+              <Sparkles size={18} className="text-apple-accent mb-2 group-hover:rotate-12 transition-transform" />
+              <span className="text-[14px] font-bold text-apple-text mb-1">Discover Zen</span>
+              <p className="text-[11px] text-gray-500 leading-tight">Add a hand-picked light music pack.</p>
+            </div>
+            <div className="absolute top-0 right-0 -mr-4 -mt-4 w-16 h-16 bg-apple-accent/5 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+          </button>
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import MusicGrid from './components/MusicGrid';
 import Player from './components/Player';
 import SongModal from './components/SongModal';
 import LoginModal from './components/LoginModal';
-import { MOCK_SONGS } from './constants';
+import { MOCK_SONGS, AMBIENT_COLLECTION } from './constants';
 import { Song, View } from './types';
 import { LogIn, LogOut, ChevronDown, Plus, Edit3, Check, ArrowLeft } from 'lucide-react';
 import { supabase, isUserAdmin } from './services/supabaseClient';
@@ -21,7 +21,6 @@ export default function App() {
   const [likedSongIds, setLikedSongIds] = useState<Set<string>>(new Set());
   const [isLyricsOpen, setIsLyricsOpen] = useState(false);
   
-  // Filtering state for Artists/Albums sub-views
   const [filterType, setFilterType] = useState<'artist' | 'album' | null>(null);
   const [filterValue, setFilterValue] = useState<string | null>(null);
 
@@ -70,11 +69,8 @@ export default function App() {
     fetchSongs();
   }, []);
 
-  // Derived data based on active view and filters
   const displayData = useMemo(() => {
     let base = [...myLibrary];
-
-    // Handle sub-filters first
     if (filterType && filterValue) {
       const filtered = base.filter(s => filterType === 'artist' ? s.artist === filterValue : s.album === filterValue);
       return { 
@@ -86,26 +82,11 @@ export default function App() {
 
     switch (activeView) {
       case View.RECENTLY_ADDED:
-        return { 
-          title: "Recently Added", 
-          songs: base.sort((a, b) => b.addedAt - a.addedAt), 
-          isCategory: false 
-        };
-
+        return { title: "Recently Added", songs: base.sort((a, b) => b.addedAt - a.addedAt), isCategory: false };
       case View.SONGS:
-        return { 
-          title: "Songs", 
-          songs: base.sort((a, b) => a.title.localeCompare(b.title)), 
-          isCategory: false 
-        };
-
+        return { title: "Songs", songs: base.sort((a, b) => a.title.localeCompare(b.title)), isCategory: false };
       case View.LIKED:
-        return { 
-          title: "Liked Songs", 
-          songs: base.filter(s => likedSongIds.has(s.id)).sort((a, b) => a.title.localeCompare(b.title)), 
-          isCategory: false 
-        };
-
+        return { title: "Liked Songs", songs: base.filter(s => likedSongIds.has(s.id)).sort((a, b) => a.title.localeCompare(b.title)), isCategory: false };
       case View.ARTISTS:
         const artistMap = new Map<string, Song>();
         base.forEach(s => {
@@ -113,13 +94,7 @@ export default function App() {
             artistMap.set(s.artist, { ...s, title: s.artist, description: `${base.filter(x => x.artist === s.artist).length} Songs` });
           }
         });
-        return { 
-          title: "Artists", 
-          songs: Array.from(artistMap.values()).sort((a, b) => a.title.localeCompare(b.title)), 
-          isCategory: true,
-          type: 'artist'
-        };
-
+        return { title: "Artists", songs: Array.from(artistMap.values()).sort((a, b) => a.title.localeCompare(b.title)), isCategory: true, type: 'artist' };
       case View.ALBUMS:
         const albumMap = new Map<string, Song>();
         base.forEach(s => {
@@ -128,13 +103,7 @@ export default function App() {
             albumMap.set(key, { ...s, title: s.album, description: s.artist });
           }
         });
-        return { 
-          title: "Albums", 
-          songs: Array.from(albumMap.values()).sort((a, b) => a.title.localeCompare(b.title)), 
-          isCategory: true,
-          type: 'album'
-        };
-
+        return { title: "Albums", songs: Array.from(albumMap.values()).sort((a, b) => a.title.localeCompare(b.title)), isCategory: true, type: 'album' };
       default:
         return { title: "Library", songs: base, isCategory: false };
     }
@@ -148,36 +117,40 @@ export default function App() {
 
   const handleSaveSong = async (song: Song) => {
     const isNew = !myLibrary.some(s => s.id === song.id);
-    
     if (isNew) {
       setMyLibrary(prev => [song, ...prev]);
       await supabase.from('songs').insert({
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        album: song.album,
-        cover_url: song.coverUrl,
-        audio_url: song.audioUrl,
-        lyrics_url: song.lyricsUrl,
-        added_at: song.addedAt,
-        description: song.description
+        id: song.id, title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
+        audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, added_at: song.addedAt, description: song.description
       });
     } else {
       setMyLibrary(prev => prev.map(s => s.id === song.id ? song : s));
       await supabase.from('songs').update({
-        title: song.title,
-        artist: song.artist,
-        album: song.album,
-        cover_url: song.coverUrl,
-        audio_url: song.audioUrl,
-        lyrics_url: song.lyricsUrl,
-        description: song.description
+        title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
+        audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, description: song.description
       }).eq('id', song.id);
+      if (currentSong?.id === song.id) setCurrentSong(song);
+    }
+  };
 
-      if (currentSong?.id === song.id) {
-        setCurrentSong(song);
+  const handleDiscoverLightMusic = async () => {
+    const newSongs = AMBIENT_COLLECTION.filter(s => !myLibrary.some(existing => existing.title === s.title));
+    if (newSongs.length === 0) {
+      alert("Zen Pack already in your library!");
+      return;
+    }
+    setMyLibrary(prev => [...newSongs, ...prev]);
+    const isAdmin = isUserAdmin(user?.email);
+    if (isAdmin) {
+      for (const song of newSongs) {
+        await supabase.from('songs').insert({
+          id: song.id, title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
+          audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, added_at: song.addedAt, description: song.description
+        });
       }
     }
+    setActiveView(View.RECENTLY_ADDED);
+    resetFilters();
   };
 
   const handleToggleLike = (songId?: string) => {
@@ -207,14 +180,15 @@ export default function App() {
 
   return (
     <div className="relative h-screen w-screen bg-black overflow-hidden font-sans">
-      
       <div className={`flex h-full w-full bg-apple-bg transition-all duration-500 origin-top ${isLyricsOpen ? 'app-shrink' : 'app-expand'}`}>
-        {/* Sidebar */}
         <aside className="hidden md:block w-[260px] flex-shrink-0 z-20">
-          <Sidebar activeView={activeView} onChangeView={(v) => { setActiveView(v); setIsEditMode(false); resetFilters(); }} />
+          <Sidebar 
+            activeView={activeView} 
+            onChangeView={(v) => { setActiveView(v); setIsEditMode(false); resetFilters(); }} 
+            onDiscoverLightMusic={handleDiscoverLightMusic}
+          />
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 flex flex-col relative h-full overflow-hidden">
           <header className="h-16 flex items-center justify-between px-8 bg-apple-bg/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-200/50">
              <div className="flex items-center space-x-4">
