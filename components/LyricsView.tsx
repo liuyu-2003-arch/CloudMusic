@@ -9,6 +9,7 @@ interface LyricLine {
 }
 
 interface LyricsViewProps {
+  isOpen: boolean;
   song: Song;
   currentTime: number;
   duration: number;
@@ -25,11 +26,10 @@ interface LyricsViewProps {
 }
 
 const LyricsView: React.FC<LyricsViewProps> = ({ 
-  song, currentTime, duration, onClose, isPlaying, 
+  isOpen, song, currentTime, duration, onClose, isPlaying, 
   onPlayPause, onNext, onPrev, onSeek,
   isLiked = false, onLikeToggle
 }) => {
-  const [isClosing, setIsClosing] = useState(false);
   const [popHeart, setPopHeart] = useState(false);
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([]);
   const [dragOffset, setDragOffset] = useState(0);
@@ -41,71 +41,84 @@ const LyricsView: React.FC<LyricsViewProps> = ({
 
   // SRT Parsing Logic
   const parseTimestamp = (timestamp: string): number => {
-    const [hms, ms] = timestamp.split(/[,.]/); 
-    const [h, m, s] = hms.split(':').map(Number);
-    return h * 3600 + m * 60 + s + (Number(ms) || 0) / 1000;
+    try {
+      const [hms, ms] = timestamp.split(/[,.]/); 
+      const [h, m, s] = hms.split(':').map(Number);
+      return h * 3600 + m * 60 + s + (Number(ms) || 0) / 1000;
+    } catch {
+      return 0;
+    }
   };
 
   const parseSRT = (data: string): LyricLine[] => {
     const lines: LyricLine[] = [];
-    const blocks = data.trim().split(/\r?\n\r?\n/);
-
-    for (const block of blocks) {
-      const parts = block.split(/\r?\n/);
-      if (parts.length >= 3) {
-        const timeMatch = parts[1].match(/(\d{2}:\d{2}:\d{2}[,.]\d{3}) --> (\d{2}:\d{2}:\d{2}[,.]\d{3})/);
-        if (timeMatch) {
-          const start = parseTimestamp(timeMatch[1]);
-          const end = parseTimestamp(timeMatch[2]);
-          const text = parts.slice(2).join(' ').trim();
-          if (text) lines.push({ startTime: start, endTime: end, text });
+    try {
+      const blocks = data.trim().split(/\r?\n\r?\n/);
+      for (const block of blocks) {
+        const parts = block.split(/\r?\n/);
+        if (parts.length >= 3) {
+          const timeMatch = parts[1].match(/(\d{2}:\d{2}:\d{2}[,.]\d{3}) --> (\d{2}:\d{2}:\d{2}[,.]\d{3})/);
+          if (timeMatch) {
+            const start = parseTimestamp(timeMatch[1]);
+            const end = parseTimestamp(timeMatch[2]);
+            const text = parts.slice(2).join(' ').trim();
+            if (text) lines.push({ startTime: start, endTime: end, text });
+          }
         }
       }
+    } catch (e) {
+      console.warn("Error parsing SRT:", e);
     }
     return lines;
   };
 
-  // Fetch or generate lyrics
   useEffect(() => {
     const loadLyrics = async () => {
+      let lyricsLoaded = false;
       if (song.lyricsUrl) {
         try {
-          const response = await fetch(song.lyricsUrl);
-          const text = await response.text();
-          if (text.includes('-->')) {
-            const parsed = parseSRT(text);
-            if (parsed.length > 0) {
-              setParsedLyrics(parsed);
-              return;
+          // Add a simple timeout to the fetch to avoid hanging on bad links
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          
+          const response = await fetch(song.lyricsUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            const text = await response.text();
+            if (text.includes('-->')) {
+              const parsed = parseSRT(text);
+              if (parsed.length > 0) {
+                setParsedLyrics(parsed);
+                lyricsLoaded = true;
+              }
             }
           }
         } catch (err) {
-          console.error("Failed to fetch lyrics:", err);
+          // If fetch fails (CORS, network), we just fail silently and use fallback
+          console.warn("Lyrics fetch failed, using fallback:", err);
         }
       }
 
-      const mockLines = [
-        "Verse 1", `Now playing ${song.title}`, `By ${song.artist}`, 
-        "This is a fallback lyric view", "Add an SRT link to see real sync",
-        "Chorus", "Music feels better with you", "Right here in the morning light",
-        "Bridge", "Everything is falling into place", "The rhythm takes us home", "End"
-      ];
-      
-      const interval = (duration || 180) / mockLines.length;
-      setParsedLyrics(mockLines.map((text, i) => ({
-        startTime: i * interval,
-        endTime: (i + 1) * interval,
-        text
-      })));
+      if (!lyricsLoaded) {
+        const mockLines = [
+          "Verse 1", `Now playing ${song.title}`, `By ${song.artist}`, 
+          "Add an SRT link to see real sync", "Or enjoy the music as it is",
+          "Chorus", "Music feels better with you", "Right here in the morning light",
+          "Bridge", "Everything is falling into place", "The rhythm takes us home", "End"
+        ];
+        
+        const interval = (duration || 180) / mockLines.length;
+        setParsedLyrics(mockLines.map((text, i) => ({
+          startTime: i * interval,
+          endTime: (i + 1) * interval,
+          text
+        })));
+      }
     };
 
     loadLyrics();
   }, [song.lyricsUrl, song.id, duration]);
-
-  const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(onClose, 400); 
-  };
 
   const handleLike = () => {
     setPopHeart(true);
@@ -135,61 +148,54 @@ const LyricsView: React.FC<LyricsViewProps> = ({
     }
   }, [activeIndex]);
 
-  // Touch Swipe-to-close Logic
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartY.current === null) return;
-    
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - touchStartY.current;
-
     const isAtTop = scrollRef.current ? scrollRef.current.scrollTop <= 0 : true;
 
     if (isAtTop && deltaY > 0) {
       isDragging.current = true;
-      setDragOffset(deltaY);
+      // Exponentially dampen the drag to make it feel more "heavy" and premium
+      const dampedOffset = Math.pow(deltaY, 0.85) * 2;
+      setDragOffset(deltaY > 10 ? dampedOffset : deltaY);
       if (e.cancelable) e.preventDefault();
     }
   };
 
   const handleTouchEnd = () => {
-    if (dragOffset > 150) {
-      handleClose();
-    } else {
-      setDragOffset(0);
+    // If pulled down enough, close immediately to sync with Toolbar slide-up
+    if (dragOffset > 120) {
+      onClose();
     }
+    setDragOffset(0);
     touchStartY.current = null;
     isDragging.current = false;
   };
 
-  // Computer Trackpad / Mouse Wheel Swipe-to-close Logic
   const handleWheel = (e: React.WheelEvent) => {
     const isAtTop = scrollRef.current ? scrollRef.current.scrollTop <= 0 : true;
-    
-    // deltaY < 0 means scrolling up (content moves down, swipe down gesture)
     if (isAtTop && e.deltaY < 0) {
-      // Accumulate negative deltaY to simulate drag
       wheelAccumulator.current += Math.abs(e.deltaY);
-      setDragOffset(Math.min(wheelAccumulator.current * 0.5, 200));
+      // Faster response for trackpad swipes
+      const calculatedOffset = Math.min(wheelAccumulator.current * 0.4, 200);
+      setDragOffset(calculatedOffset);
 
-      if (wheelAccumulator.current > 300) {
-        handleClose();
+      if (wheelAccumulator.current > 250) {
+        onClose();
         wheelAccumulator.current = 0;
       }
 
-      // Reset accumulator if user stops scrolling
       if (wheelResetTimeout.current) window.clearTimeout(wheelResetTimeout.current);
       wheelResetTimeout.current = window.setTimeout(() => {
-        if (!isClosing) {
-          setDragOffset(0);
-          wheelAccumulator.current = 0;
-        }
-      }, 150);
+        setDragOffset(0);
+        wheelAccumulator.current = 0;
+      }, 100);
     } else if (dragOffset > 0) {
-      // If user scrolls down while drag is active, reset it
       setDragOffset(0);
       wheelAccumulator.current = 0;
     }
@@ -197,124 +203,88 @@ const LyricsView: React.FC<LyricsViewProps> = ({
 
   return (
     <div 
-      className={`fixed inset-0 z-[100] flex flex-col bg-gray-900 text-white shadow-2xl transition-transform duration-300 ${isClosing ? 'animate-ios-down' : 'animate-ios-up'}`}
+      className={`fixed inset-0 z-[100] flex flex-col bg-apple-bg shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isOpen ? 'animate-ios-up' : 'animate-ios-down'} ${isDragging.current ? 'dragging' : ''}`}
       style={{ 
-        transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-        transition: isDragging.current ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)'
+        transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onWheel={handleWheel}
     >
-      
-      {/* Dynamic Background Blur */}
+      {/* Background with lighter blur for cleaner look */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <img src={song.coverUrl} className="w-full h-full object-cover blur-[100px] opacity-40 scale-150 animate-[pulse_10s_infinite]" alt="" />
-        <div className="absolute inset-0 bg-black/50"></div>
+        <img src={song.coverUrl} className="w-full h-full object-cover blur-[80px] opacity-20 scale-150 animate-[pulse_8s_infinite]" alt="" />
+        <div className="absolute inset-0 bg-white/40"></div>
       </div>
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-6 py-4 md:px-8 shrink-0">
-         <button 
-           onClick={handleClose} 
-           className="bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-all active:scale-75"
-         >
+         <button onClick={onClose} className="bg-black/5 hover:bg-black/10 p-2 rounded-full backdrop-blur-md transition-all active:scale-75 text-apple-text">
             <ChevronDown size={24} />
          </button>
-         <div className="text-center opacity-60">
-             <span className="block text-[10px] font-bold uppercase tracking-widest">Playing From</span>
-             <span className="text-xs font-bold truncate max-w-[200px] inline-block">{song.album || 'Unknown Album'}</span>
+         <div className="text-center opacity-60 text-apple-text">
+             <span className="block text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5">Playing From</span>
+             <span className="text-xs font-bold truncate max-w-[200px] inline-block leading-none">{song.album || 'Single'}</span>
          </div>
-         <button 
-            onClick={handleLike}
-            className={`p-2 transition-all active:scale-75 ${isLiked ? 'text-apple-accent' : 'text-white/30'}`}
-         >
+         <button onClick={handleLike} className={`p-2 transition-all active:scale-75 ${isLiked ? 'text-apple-accent' : 'text-apple-text/20'}`}>
             <Heart size={24} fill={isLiked ? "currentColor" : "none"} className={popHeart ? 'heart-animate' : ''} />
          </button>
       </div>
 
-      {/* Lyrics Main Scroll Area */}
-      <div 
-        ref={scrollRef}
-        className="relative z-10 flex-1 overflow-y-auto px-8 py-10 space-y-12 text-left scroll-smooth no-scrollbar"
-        style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 80%, transparent)' }}
-      >
-          <div className="h-[10vh]"></div> {/* Initial Spacer */}
-          
+      {/* Lyrics Scroll Area */}
+      <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto px-8 py-10 space-y-10 text-left scroll-smooth no-scrollbar" style={{ maskImage: 'linear-gradient(to bottom, transparent, black 12%, black 88%, transparent)' }}>
+          <div className="h-[12vh]"></div>
           {parsedLyrics.length === 0 ? (
-             <div className="flex flex-col items-center justify-center h-full text-white/20">
-                <p className="text-2xl font-bold">No lyrics available</p>
+             <div className="flex flex-col items-center justify-center h-full text-apple-text/10">
+                <p className="text-3xl font-bold italic">Lyrics unavailable</p>
              </div>
           ) : (
             parsedLyrics.map((line, idx) => (
                 <p 
                   key={idx} 
-                  className={`text-3xl md:text-5xl font-bold transition-all duration-700 cursor-pointer max-w-2xl mx-auto leading-tight ${
-                    idx === activeIndex 
-                    ? 'text-white scale-100 opacity-100 blur-none' 
-                    : 'text-white/20 scale-95 opacity-30 blur-[1.5px] hover:opacity-50'
-                  }`}
+                  className={`text-3xl md:text-5xl font-bold transition-all duration-500 cursor-pointer max-w-2xl mx-auto leading-tight tracking-tight ${idx === activeIndex ? 'text-apple-text scale-100 opacity-100 blur-none' : 'text-apple-text/20 scale-95 opacity-30 blur-[0.8px] hover:opacity-50'}`} 
                   onClick={() => onSeek(line.startTime)}
                 >
                     {line.text}
                 </p>
             ))
           )}
-          
-          <div className="h-[50vh]"></div> {/* End Spacer */}
+          <div className="h-[45vh]"></div>
       </div>
 
-      {/* Footer Controls */}
-      <div className="relative z-20 px-6 pt-4 pb-10 md:px-12 bg-black/40 backdrop-blur-3xl border-t border-white/5">
+      {/* Footer Controls - Receding into Toolbar look */}
+      <div className="relative z-20 px-6 pt-4 pb-12 md:px-12 bg-white/60 backdrop-blur-2xl border-t border-black/5">
           <div className="max-w-4xl mx-auto flex flex-col gap-6">
-              
               <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 w-1/3 min-w-0">
-                      <div className="w-12 h-12 rounded-lg overflow-hidden shadow-2xl flex-shrink-0 bg-gray-800">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shadow-xl flex-shrink-0 bg-gray-200">
                           <img src={song.coverUrl} className="w-full h-full object-cover" alt="" />
                       </div>
-                      <div className="min-w-0">
-                          <h2 className="font-bold truncate text-base leading-tight">{song.title}</h2>
-                          <h3 className="text-xs text-white/50 truncate font-medium mt-0.5">{song.artist}</h3>
+                      <div className="min-w-0 text-apple-text">
+                          <h2 className="font-bold truncate text-base leading-tight tracking-tight">{song.title}</h2>
+                          <h3 className="text-xs text-apple-text/40 truncate font-semibold mt-0.5">{song.artist}</h3>
                       </div>
                   </div>
-
-                  <div className="flex items-center gap-6 md:gap-8">
-                      <button onClick={onPrev} className="text-white/60 hover:text-white active:scale-75 transition-all">
-                          <SkipBack className="w-6 h-6" fill="currentColor" />
+                  <div className="flex items-center gap-5 md:gap-7 text-apple-text">
+                      <button onClick={onPrev} className="text-apple-text/40 hover:text-apple-text active:scale-75 transition-all">
+                        <SkipBack className="w-6 h-6" fill="currentColor" />
                       </button>
-                      <button 
-                        onClick={onPlayPause} 
-                        className="w-12 h-12 md:w-14 md:h-14 bg-white text-black rounded-full flex items-center justify-center active:scale-90 transition-transform shadow-lg hover:scale-105"
-                      >
-                          {isPlaying ? (
-                              <Pause className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
-                          ) : (
-                              <Play className="w-5 h-5 md:w-6 md:h-6 ml-1" fill="currentColor" />
-                          )}
+                      <button onClick={onPlayPause} className="w-14 h-14 bg-apple-text text-white rounded-full flex items-center justify-center active:scale-90 transition-transform shadow-xl hover:scale-105">
+                          {isPlaying ? <Pause className="w-6 h-6" fill="currentColor" /> : <Play className="w-6 h-6 ml-1" fill="currentColor" />}
                       </button>
-                      <button onClick={onNext} className="text-white/60 hover:text-white active:scale-75 transition-all">
-                          <SkipForward className="w-6 h-6" fill="currentColor" />
+                      <button onClick={onNext} className="text-apple-text/40 hover:text-apple-text active:scale-75 transition-all">
+                        <SkipForward className="w-6 h-6" fill="currentColor" />
                       </button>
                   </div>
-
                   <div className="w-1/3"></div>
               </div>
-
-              <div className="w-full space-y-2 px-1">
-                  <div className="relative h-1.5 w-full bg-white/10 rounded-full cursor-pointer group">
-                      <div 
-                        className="absolute h-full bg-white/80 rounded-full transition-all duration-300" 
-                        style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                      />
-                      <input 
-                        type="range" min="0" max={duration || 100} step="0.1" value={currentTime}
-                        onChange={(e) => onSeek(parseFloat(e.target.value))}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
+              <div className="w-full space-y-2.5 px-1">
+                  <div className="relative h-1 w-full bg-black/5 rounded-full cursor-pointer group">
+                      <div className="absolute h-full bg-apple-text/60 rounded-full transition-all duration-300" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} />
+                      <input type="range" min="0" max={duration || 100} step="0.1" value={currentTime} onChange={(e) => onSeek(parseFloat(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                   </div>
-                  <div className="flex justify-between text-[10px] font-bold text-white/30 tabular-nums uppercase tracking-tighter">
+                  <div className="flex justify-between text-[10px] font-bold text-apple-text/20 tabular-nums uppercase tracking-tighter">
                       <span>{formatTime(currentTime)}</span>
                       <span>{formatTime(duration)}</span>
                   </div>

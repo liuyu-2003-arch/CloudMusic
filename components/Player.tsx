@@ -23,6 +23,21 @@ const Player: React.FC<PlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.5);
   const [duration, setDuration] = useState(0);
+  
+  // Keep the lyrics view rendered during the transition out
+  const [shouldRenderLyrics, setShouldRenderLyrics] = useState(false);
+  const [lastSong, setLastSong] = useState<Song | null>(null);
+
+  useEffect(() => {
+    if (isLyricsOpen) {
+      setShouldRenderLyrics(true);
+      if (currentSong) setLastSong(currentSong);
+    } else {
+      // Delay unmounting until the slide-down animation finishes
+      const timer = setTimeout(() => setShouldRenderLyrics(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isLyricsOpen, currentSong]);
 
   useEffect(() => {
     if (currentSong && audioRef.current) {
@@ -70,11 +85,11 @@ const Player: React.FC<PlayerProps> = ({
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  if (!currentSong) return null;
+  if (!currentSong && !lastSong) return null;
 
   return (
     <>
-      <div className={`h-[88px] bg-white/95 backdrop-blur-2xl border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 flex items-center px-4 md:px-6 shadow-lg transition-transform duration-500 ${isLyricsOpen ? 'translate-y-full' : 'translate-y-0'}`}>
+      <div className={`h-[88px] bg-white/95 backdrop-blur-2xl border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 flex items-center px-4 md:px-6 shadow-lg transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isLyricsOpen ? 'translate-y-full' : 'translate-y-0'}`}>
         <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={() => setIsPlaying(false)} />
         
         {/* Track Info & Cover */}
@@ -83,14 +98,14 @@ const Player: React.FC<PlayerProps> = ({
           className="flex items-center flex-1 md:w-1/4 min-w-0 group cursor-pointer active:scale-95 transition-transform duration-200"
         >
           <div className="h-12 w-12 rounded-lg overflow-hidden shadow-sm bg-gray-200 mr-3 flex-shrink-0 relative">
-             <img src={currentSong.coverUrl} alt="Cover" className="h-full w-full object-cover" />
+             <img src={(currentSong || lastSong)?.coverUrl} alt="Cover" className="h-full w-full object-cover" />
              <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                 <Maximize2 size={16} className="text-white" />
              </div>
           </div>
           <div className="flex flex-col overflow-hidden min-w-0">
-            <h4 className="text-sm font-semibold text-gray-900 truncate">{currentSong.title}</h4>
-            <p className="text-xs text-gray-500 truncate">{currentSong.artist}</p>
+            <h4 className="text-sm font-semibold text-gray-900 truncate">{(currentSong || lastSong)?.title}</h4>
+            <p className="text-xs text-gray-500 truncate">{(currentSong || lastSong)?.artist}</p>
           </div>
         </div>
 
@@ -104,51 +119,30 @@ const Player: React.FC<PlayerProps> = ({
             <button onClick={(e) => { e.stopPropagation(); onNext?.(); }} className="text-gray-800 active:scale-90 transition-transform"><SkipForward size={22} fill="currentColor" /></button>
           </div>
           
-          {/* Timeline Section */}
           <div className="w-full flex items-center space-x-3">
             <span className="text-[10px] font-medium text-gray-400 w-8 text-right tabular-nums">{formatTime(currentTime)}</span>
             <div className="flex-1 relative h-6 flex items-center group">
-              {/* Visual Progress Bar */}
               <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden relative">
-                <div 
-                  className="h-full bg-apple-accent transition-all duration-100" 
-                  style={{ width: `${progress}%` }} 
-                />
+                <div className="h-full bg-apple-accent transition-all duration-100" style={{ width: `${progress}%` }} />
               </div>
-              {/* Interactive Range Input */}
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                step="0.1"
-                value={progress} 
-                onChange={handleSeek}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-              />
-              {/* Knob on Hover */}
-              <div 
-                className="absolute w-3 h-3 bg-white border border-gray-300 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                style={{ left: `calc(${progress}% - 6px)` }}
-              />
+              <input type="range" min="0" max="100" step="0.1" value={progress} onChange={handleSeek} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+              <div className="absolute w-3 h-3 bg-white border border-gray-300 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" style={{ left: `calc(${progress}% - 6px)` }} />
             </div>
             <span className="text-[10px] font-medium text-gray-400 w-8 tabular-nums">{formatTime(duration)}</span>
           </div>
         </div>
 
-        {/* Lyrics Toggle Button */}
         <div className="flex items-center justify-end md:w-1/4">
-          <button 
-            onClick={(e) => { e.stopPropagation(); onSetLyricsOpen(true); }}
-            className="text-[10px] border border-gray-300 px-3 py-1.5 rounded-full font-bold hover:bg-gray-50 active:scale-95 transition-all text-gray-600 tracking-tight"
-          >
+          <button onClick={(e) => { e.stopPropagation(); onSetLyricsOpen(true); }} className="text-[10px] border border-gray-300 px-3 py-1.5 rounded-full font-bold hover:bg-gray-50 active:scale-95 transition-all text-gray-600 tracking-tight">
             LYRICS
           </button>
         </div>
       </div>
 
-      {isLyricsOpen && (
+      {shouldRenderLyrics && (currentSong || lastSong) && (
         <LyricsView 
-          song={currentSong}
+          isOpen={isLyricsOpen}
+          song={(currentSong || lastSong)!}
           currentTime={currentTime}
           duration={duration || 180}
           isPlaying={isPlaying}
