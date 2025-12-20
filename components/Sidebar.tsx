@@ -77,14 +77,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, onDiscoverL
           <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-3 px-3">Recommended</h3>
           <button 
             onClick={onDiscoverLightMusic}
-            className="w-[calc(100%-16px)] mx-2 p-4 rounded-xl bg-gradient-to-br from-indigo-500/10 to-apple-accent/10 border border-apple-accent/5 hover:border-apple-accent/20 transition-all group relative overflow-hidden active:scale-95"
+            className="w-[calc(100%-16px)] mx-2 p-4 rounded-xl bg-gradient-to-br from-indigo-500/10 to-teal-500/10 border border-teal-500/5 hover:border-teal-500/20 transition-all group relative overflow-hidden active:scale-95"
           >
             <div className="relative z-10 flex flex-col items-start text-left">
-              <Sparkles size={18} className="text-apple-accent mb-2 group-hover:rotate-12 transition-transform" />
-              <span className="text-[14px] font-bold text-apple-text mb-1">Discover Zen</span>
-              <p className="text-[11px] text-gray-500 leading-tight">Add a hand-picked light music pack.</p>
+              <Sparkles size={18} className="text-teal-600 mb-2 group-hover:rotate-12 transition-transform" />
+              <span className="text-[14px] font-bold text-apple-text mb-1">Pure Silence Pack</span>
+              <p className="text-[11px] text-gray-500 leading-tight">Add 100% quiet instrumental & nature tracks.</p>
             </div>
-            <div className="absolute top-0 right-0 -mr-4 -mt-4 w-16 h-16 bg-apple-accent/5 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+            <div className="absolute top-0 right-0 -mr-4 -mt-4 w-16 h-16 bg-teal-500/5 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
           </button>
         </div>
       </div>

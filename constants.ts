@@ -10,69 +10,69 @@ export const MOCK_SONGS: Song[] = [
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     addedAt: Date.now(),
     description: 'A hauntingly beautiful orchestral piece with deep emotional resonance.'
-  },
-  {
-    id: '2',
-    title: 'Jem 的电台',
-    artist: '广播电台',
-    album: 'Jem FM',
-    coverUrl: 'https://images.unsplash.com/photo-1514525253344-013190805c89?w=400&h=400&fit=crop',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    addedAt: Date.now() - 10000,
-    description: 'Upbeat electronic mixes perfect for late night drives.'
   }
 ];
 
 export const AMBIENT_COLLECTION: Song[] = [
   {
-    id: 'ambient-1',
-    title: 'Zen Garden',
-    artist: 'Kyoto Echoes',
-    album: 'Eastern Calm',
+    id: 'zen-1',
+    title: 'Pure Silence',
+    artist: 'Deep Meditation',
+    album: 'Zen Moments',
     coverUrl: 'https://images.unsplash.com/photo-1518173946687-a4c8a98039f5?w=400&h=400&fit=crop',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
     addedAt: Date.now(),
-    description: 'Minimalist koto and bamboo flute melodies for deep focus.'
+    description: 'Extremely quiet low-frequency drones for deep focus and sleep.'
   },
   {
-    id: 'ambient-2',
-    title: 'Midnight Rain',
-    artist: 'Atmosphere',
-    album: 'Nature Elements',
+    id: 'zen-2',
+    title: 'Minimalist Piano',
+    artist: 'Simeon Walker',
+    album: 'Soft Keys',
+    coverUrl: 'https://images.unsplash.com/photo-1520529611473-d58ff3f47a3e?w=400&h=400&fit=crop',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
+    addedAt: Date.now(),
+    description: 'Soft, sparse piano notes with plenty of space and breath.'
+  },
+  {
+    id: 'zen-3',
+    title: 'Forest Whispers',
+    artist: 'Nature Sounds',
+    album: 'Organic Earth',
+    coverUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=400&fit=crop',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3',
+    addedAt: Date.now(),
+    description: 'Gentle wind through leaves and distant birds. No music, just nature.'
+  },
+  {
+    id: 'zen-4',
+    title: 'Deep Space Ambient',
+    artist: 'Ethereal',
+    album: 'Void',
+    coverUrl: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=400&h=400&fit=crop',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3',
+    addedAt: Date.now(),
+    description: 'Slow-moving cosmic pads that create a sense of weightlessness.'
+  },
+  {
+    id: 'zen-5',
+    title: 'Morning Dew',
+    artist: 'Acoustic Soul',
+    album: 'Quiet Mornings',
+    coverUrl: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=400&h=400&fit=crop',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3',
+    addedAt: Date.now(),
+    description: 'Very soft fingerstyle guitar recorded in a wooden room.'
+  },
+  {
+    id: 'zen-6',
+    title: 'Rainy Night In Tokyo',
+    artist: 'Lo-Fi City',
+    album: 'Urban Rain',
     coverUrl: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=400&h=400&fit=crop',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3',
     addedAt: Date.now(),
-    description: 'Soothing rain sounds mixed with soft cinematic pads.'
-  },
-  {
-    id: 'ambient-3',
-    title: 'Lo-Fi Morning',
-    artist: 'Chill Station',
-    album: 'Study Beats',
-    coverUrl: 'https://images.unsplash.com/photo-1494232410401-ad00d5433cfa?w=400&h=400&fit=crop',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    addedAt: Date.now(),
-    description: 'Dusty vinyl crackle and jazzy chords to start your day.'
-  },
-  {
-    id: 'ambient-4',
-    title: 'Mountain Stream',
-    artist: 'Wilderness',
-    album: 'Pure Nature',
-    coverUrl: 'https://images.unsplash.com/photo-1433086177607-6c3031070595?w=400&h=400&fit=crop',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    addedAt: Date.now(),
-    description: 'Crystal clear water flowing over pebbles. Pure organic sound.'
-  },
-  {
-    id: 'ambient-5',
-    title: 'Starlight Piano',
-    artist: 'Elara Moon',
-    album: 'Solitude',
-    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3',
-    addedAt: Date.now(),
-    description: 'Ethereal piano solo recorded in a large cathedral.'
+    description: 'Pure rain sounds against a window. Calm, consistent, and peaceful.'
   }
 ];
 
