@@ -8,10 +8,16 @@ import { MOCK_SONGS, AMBIENT_COLLECTION } from './constants';
 import { Song, View } from './types';
 import { LogIn, LogOut, ChevronDown, Plus, Edit3, Check, ArrowLeft } from 'lucide-react';
 import { supabase, isUserAdmin } from './services/supabaseClient';
+import { uploadFile, deleteFile } from './services/uploadService';
+
+// Extend Song for internal UI state
+interface UISong extends Song {
+  isRemoving?: boolean;
+}
 
 export default function App() {
   const [activeView, setActiveView] = useState<View>(View.SONGS);
-  const [myLibrary, setMyLibrary] = useState<Song[]>([]);
+  const [myLibrary, setMyLibrary] = useState<UISong[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,26 +116,90 @@ export default function App() {
   }, [myLibrary, activeView, likedSongIds, filterType, filterValue]);
 
   const handleDeleteSong = async (song: Song) => {
-      setMyLibrary(prev => prev.filter(s => s.id !== song.id));
-      await supabase.from('songs').delete().eq('id', song.id);
-      if (currentSong?.id === song.id) setCurrentSong(null);
+      // 1. Mark as removing in UI (triggers animation)
+      setMyLibrary(prev => prev.map(s => s.id === song.id ? { ...s, isRemoving: true } : s));
+      
+      // 2. Wait for animation to finish
+      setTimeout(async () => {
+        // Remove from UI list
+        setMyLibrary(prev => prev.filter(s => s.id !== song.id));
+        
+        // Background: Delete associated files from MinIO
+        if (song.coverUrl) deleteFile(song.coverUrl);
+        if (song.audioUrl) deleteFile(song.audioUrl);
+        if (song.lyricsUrl) deleteFile(song.lyricsUrl);
+
+        // Background: Delete from Database
+        await supabase.from('songs').delete().eq('id', song.id);
+        
+        if (currentSong?.id === song.id) setCurrentSong(null);
+      }, 400); // matches Tailwind transition duration
   };
 
-  const handleSaveSong = async (song: Song) => {
+  const handleSaveSong = async (song: Song, files?: { cover?: File; audio?: File; lyrics?: File }) => {
     const isNew = !myLibrary.some(s => s.id === song.id);
+    
+    // Optimistically add/update in the UI library
     if (isNew) {
       setMyLibrary(prev => [song, ...prev]);
-      await supabase.from('songs').insert({
-        id: song.id, title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
-        audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, added_at: song.addedAt, description: song.description
-      });
     } else {
       setMyLibrary(prev => prev.map(s => s.id === song.id ? song : s));
-      await supabase.from('songs').update({
-        title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
-        audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, description: song.description
-      }).eq('id', song.id);
-      if (currentSong?.id === song.id) setCurrentSong(song);
+    }
+
+    // Process file uploads in the background if they exist
+    if (files && (files.cover || files.audio || files.lyrics)) {
+      (async () => {
+        try {
+          const updatedUrls: Partial<Song> = {};
+          
+          if (files.cover) {
+            updatedUrls.coverUrl = await uploadFile(files.cover, 'covers');
+          }
+          if (files.audio) {
+            updatedUrls.audioUrl = await uploadFile(files.audio, 'tracks');
+          }
+          if (files.lyrics) {
+            updatedUrls.lyricsUrl = await uploadFile(files.lyrics, 'lyrics');
+          }
+
+          // Update song in UI with real URLs and set isUploading to false
+          const finalSong = { ...song, ...updatedUrls, isUploading: false };
+          setMyLibrary(prev => prev.map(s => s.id === song.id ? finalSong : s));
+          if (currentSong?.id === song.id) setCurrentSong(finalSong);
+
+          // Now persist to Supabase with final URLs
+          if (isNew) {
+            await supabase.from('songs').insert({
+              id: finalSong.id, title: finalSong.title, artist: finalSong.artist, album: finalSong.album, 
+              cover_url: finalSong.coverUrl, audio_url: finalSong.audioUrl, lyrics_url: finalSong.lyricsUrl, 
+              added_at: finalSong.addedAt, description: finalSong.description
+            });
+          } else {
+            await supabase.from('songs').update({
+              title: finalSong.title, artist: finalSong.artist, album: finalSong.album, 
+              cover_url: finalSong.coverUrl, audio_url: finalSong.audioUrl, lyrics_url: finalSong.lyricsUrl, 
+              description: finalSong.description
+            }).eq('id', finalSong.id);
+          }
+        } catch (error) {
+          console.error("Background upload failed:", error);
+          setMyLibrary(prev => prev.map(s => s.id === song.id ? { ...s, isUploading: false } : s));
+        }
+      })();
+    } else {
+      // No files to upload, just persist immediately
+      if (isNew) {
+        await supabase.from('songs').insert({
+          id: song.id, title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
+          audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, added_at: song.addedAt, description: song.description
+        });
+      } else {
+        await supabase.from('songs').update({
+          title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
+          audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, description: song.description
+        }).eq('id', song.id);
+        if (currentSong?.id === song.id) setCurrentSong(song);
+      }
     }
   };
 
@@ -162,7 +232,8 @@ export default function App() {
       localStorage.setItem('cloudmusic_liked_ids', JSON.stringify(Array.from(newSet)));
   };
 
-  const handleItemClick = (item: Song) => {
+  const handleItemClick = (item: UISong) => {
+    if (item.isUploading || item.isRemoving) return;
     if (displayData.isCategory) {
       setFilterType(displayData.type as any);
       setFilterValue(item.title);
