@@ -56,17 +56,29 @@ export default function App() {
       setIsLoading(true);
       try {
         const { data, error } = await supabase.from('songs').select('*').order('added_at', { ascending: false });
+        
+        if (error) throw error;
+
         if (data && data.length > 0) {
            setMyLibrary(data.map((item: any) => ({
-             id: item.id, title: item.title, artist: item.artist, album: item.album,
-             coverUrl: item.cover_url || item.coverUrl, audioUrl: item.audio_url || item.audioUrl,
-             lyricsUrl: item.lyrics_url || item.lyricsUrl, addedAt: item.added_at || item.addedAt,
+             id: item.id, 
+             title: item.title, 
+             artist: item.artist, 
+             album: item.album,
+             coverUrl: item.cover_url || item.coverUrl, 
+             audioUrl: item.audio_url || item.audioUrl,
+             lyricsUrl: item.lyrics_url || item.lyricsUrl, 
+             addedAt: item.added_at || item.addedAt,
              description: item.description
            })));
+        } else if (data && data.length === 0) {
+           // Explicitly set to empty if fetch succeeded but returned no results
+           setMyLibrary([]);
         } else {
            setMyLibrary(MOCK_SONGS);
         }
       } catch (err) {
+        console.error("Fetch error:", err);
         setMyLibrary(MOCK_SONGS);
       } finally {
         setIsLoading(false);
@@ -116,24 +128,29 @@ export default function App() {
   }, [myLibrary, activeView, likedSongIds, filterType, filterValue]);
 
   const handleDeleteSong = async (song: Song) => {
-      // 1. Mark as removing in UI (triggers animation)
+      // 1. Visual feedback: Mark as removing in UI immediately
       setMyLibrary(prev => prev.map(s => s.id === song.id ? { ...s, isRemoving: true } : s));
       
-      // 2. Wait for animation to finish
-      setTimeout(async () => {
-        // Remove from UI list
-        setMyLibrary(prev => prev.filter(s => s.id !== song.id));
-        
-        // Background: Delete associated files from MinIO
-        if (song.coverUrl) deleteFile(song.coverUrl);
-        if (song.audioUrl) deleteFile(song.audioUrl);
-        if (song.lyricsUrl) deleteFile(song.lyricsUrl);
+      // 2. Start cloud operations immediately (don't wait for animation)
+      const dbDeletePromise = supabase.from('songs').delete().eq('id', song.id);
+      
+      // File cleanup in background
+      if (song.coverUrl) deleteFile(song.coverUrl);
+      if (song.audioUrl) deleteFile(song.audioUrl);
+      if (song.lyricsUrl) deleteFile(song.lyricsUrl);
 
-        // Background: Delete from Database
-        await supabase.from('songs').delete().eq('id', song.id);
+      // 3. Complete the UI removal after animation
+      setTimeout(async () => {
+        const { error } = await dbDeletePromise;
+        if (error) {
+          console.error("Supabase deletion failed:", error);
+          // If deletion failed on server, we might want to tell the user
+          // but usually in "Apple-like" UX we just handle it silently or with a toast
+        }
         
+        setMyLibrary(prev => prev.filter(s => s.id !== song.id));
         if (currentSong?.id === song.id) setCurrentSong(null);
-      }, 400); // matches Tailwind transition duration
+      }, 400); 
   };
 
   const handleSaveSong = async (song: Song, files?: { cover?: File; audio?: File; lyrics?: File }) => {
