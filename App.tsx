@@ -6,7 +6,7 @@ import SongModal from './components/SongModal';
 import LoginModal from './components/LoginModal';
 import { MOCK_SONGS, AMBIENT_COLLECTION } from './constants';
 import { Song, View } from './types';
-import { LogIn, LogOut, ChevronDown, Plus, Edit3, Check, ArrowLeft } from 'lucide-react';
+import { LogIn, LogOut, ChevronDown, Plus, Edit3, Check, ArrowLeft, RefreshCw } from 'lucide-react';
 import { supabase, isUserAdmin } from './services/supabaseClient';
 import { uploadFile, deleteFile } from './services/uploadService';
 
@@ -32,6 +32,7 @@ export default function App() {
 
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +60,8 @@ export default function App() {
         
         if (error) throw error;
 
-        if (data && data.length > 0) {
+        // If successful and data is returned (even empty array), use it
+        if (Array.isArray(data)) {
            setMyLibrary(data.map((item: any) => ({
              id: item.id, 
              title: item.title, 
@@ -71,10 +73,8 @@ export default function App() {
              addedAt: item.added_at || item.addedAt,
              description: item.description
            })));
-        } else if (data && data.length === 0) {
-           // Explicitly set to empty if fetch succeeded but returned no results
-           setMyLibrary([]);
         } else {
+           // Fallback to mocks only if data is not an array (e.g. null on error without exception)
            setMyLibrary(MOCK_SONGS);
         }
       } catch (err) {
@@ -128,33 +128,38 @@ export default function App() {
   }, [myLibrary, activeView, likedSongIds, filterType, filterValue]);
 
   const handleDeleteSong = async (song: Song) => {
-      // 1. Visual feedback: Mark as removing in UI immediately
+      // 1. Mark as removing in UI (triggers card deletion animation)
       setMyLibrary(prev => prev.map(s => s.id === song.id ? { ...s, isRemoving: true } : s));
+      setIsSyncing(true);
       
-      // 2. Start cloud operations immediately (don't wait for animation)
-      const dbDeletePromise = supabase.from('songs').delete().eq('id', song.id);
-      
-      // File cleanup in background
-      if (song.coverUrl) deleteFile(song.coverUrl);
-      if (song.audioUrl) deleteFile(song.audioUrl);
-      if (song.lyricsUrl) deleteFile(song.lyricsUrl);
+      try {
+        // 2. Immediate cloud deletion
+        const { error } = await supabase.from('songs').delete().eq('id', song.id);
+        if (error) throw error;
 
-      // 3. Complete the UI removal after animation
-      setTimeout(async () => {
-        const { error } = await dbDeletePromise;
-        if (error) {
-          console.error("Supabase deletion failed:", error);
-          // If deletion failed on server, we might want to tell the user
-          // but usually in "Apple-like" UX we just handle it silently or with a toast
-        }
-        
-        setMyLibrary(prev => prev.filter(s => s.id !== song.id));
-        if (currentSong?.id === song.id) setCurrentSong(null);
-      }, 400); 
+        // Background file cleanup
+        if (song.coverUrl) deleteFile(song.coverUrl);
+        if (song.audioUrl) deleteFile(song.audioUrl);
+        if (song.lyricsUrl) deleteFile(song.lyricsUrl);
+
+        // 3. Complete UI removal after animation
+        setTimeout(() => {
+          setMyLibrary(prev => prev.filter(s => s.id !== song.id));
+          if (currentSong?.id === song.id) setCurrentSong(null);
+          setIsSyncing(false);
+        }, 450); 
+      } catch (err) {
+        console.error("Delete failed:", err);
+        // Revert UI if delete failed
+        setMyLibrary(prev => prev.map(s => s.id === song.id ? { ...s, isRemoving: false } : s));
+        setIsSyncing(false);
+        alert("Failed to delete from cloud. Please check your connection.");
+      }
   };
 
   const handleSaveSong = async (song: Song, files?: { cover?: File; audio?: File; lyrics?: File }) => {
     const isNew = !myLibrary.some(s => s.id === song.id);
+    setIsSyncing(true);
     
     // Optimistically add/update in the UI library
     if (isNew) {
@@ -169,22 +174,15 @@ export default function App() {
         try {
           const updatedUrls: Partial<Song> = {};
           
-          if (files.cover) {
-            updatedUrls.coverUrl = await uploadFile(files.cover, 'covers');
-          }
-          if (files.audio) {
-            updatedUrls.audioUrl = await uploadFile(files.audio, 'tracks');
-          }
-          if (files.lyrics) {
-            updatedUrls.lyricsUrl = await uploadFile(files.lyrics, 'lyrics');
-          }
+          if (files.cover) updatedUrls.coverUrl = await uploadFile(files.cover, 'covers');
+          if (files.audio) updatedUrls.audioUrl = await uploadFile(files.audio, 'tracks');
+          if (files.lyrics) updatedUrls.lyricsUrl = await uploadFile(files.lyrics, 'lyrics');
 
-          // Update song in UI with real URLs and set isUploading to false
           const finalSong = { ...song, ...updatedUrls, isUploading: false };
           setMyLibrary(prev => prev.map(s => s.id === song.id ? finalSong : s));
           if (currentSong?.id === song.id) setCurrentSong(finalSong);
 
-          // Now persist to Supabase with final URLs
+          // Now persist to Supabase
           if (isNew) {
             await supabase.from('songs').insert({
               id: finalSong.id, title: finalSong.title, artist: finalSong.artist, album: finalSong.album, 
@@ -198,24 +196,32 @@ export default function App() {
               description: finalSong.description
             }).eq('id', finalSong.id);
           }
+          setIsSyncing(false);
         } catch (error) {
           console.error("Background upload failed:", error);
           setMyLibrary(prev => prev.map(s => s.id === song.id ? { ...s, isUploading: false } : s));
+          setIsSyncing(false);
         }
       })();
     } else {
-      // No files to upload, just persist immediately
-      if (isNew) {
-        await supabase.from('songs').insert({
-          id: song.id, title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
-          audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, added_at: song.addedAt, description: song.description
-        });
-      } else {
-        await supabase.from('songs').update({
-          title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
-          audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, description: song.description
-        }).eq('id', song.id);
-        if (currentSong?.id === song.id) setCurrentSong(song);
+      // No files to upload
+      try {
+        if (isNew) {
+          await supabase.from('songs').insert({
+            id: song.id, title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
+            audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, added_at: song.addedAt, description: song.description
+          });
+        } else {
+          await supabase.from('songs').update({
+            title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
+            audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, description: song.description
+          }).eq('id', song.id);
+          if (currentSong?.id === song.id) setCurrentSong(song);
+        }
+        setIsSyncing(false);
+      } catch (err) {
+        setIsSyncing(false);
+        console.error("Cloud update failed:", err);
       }
     }
   };
@@ -229,12 +235,14 @@ export default function App() {
     setMyLibrary(prev => [...newSongs, ...prev]);
     const isAdmin = isUserAdmin(user?.email);
     if (isAdmin) {
+      setIsSyncing(true);
       for (const song of newSongs) {
         await supabase.from('songs').insert({
           id: song.id, title: song.title, artist: song.artist, album: song.album, cover_url: song.coverUrl,
           audio_url: song.audioUrl, lyrics_url: song.lyricsUrl, added_at: song.addedAt, description: song.description
         });
       }
+      setIsSyncing(false);
     }
     setActiveView(View.RECENTLY_ADDED);
     resetFilters();
@@ -286,6 +294,14 @@ export default function App() {
                  </button>
                )}
                <div className="md:hidden font-bold text-xl text-gray-900">CloudMusic</div>
+               
+               {/* Syncing Indicator */}
+               {isSyncing && (
+                 <div className="flex items-center space-x-2 text-[10px] font-bold text-apple-accent uppercase tracking-widest animate-pulse px-3 py-1 bg-red-50 rounded-full">
+                    <RefreshCw size={12} className="animate-spin" />
+                    <span>Syncing Cloud</span>
+                 </div>
+               )}
              </div>
              
              <div className="flex items-center space-x-4">

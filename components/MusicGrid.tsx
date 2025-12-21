@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Song } from '../types';
-import { Play, Edit2, Loader2 } from 'lucide-react';
+import { Play, Edit2, Loader2, RefreshCw } from 'lucide-react';
 
 interface UISong extends Song {
   isRemoving?: boolean;
@@ -43,8 +43,8 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
             key={song.id} 
             className={`group relative flex flex-col cursor-pointer transition-all duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform 
               ${activeId === song.id ? 'scale-95 brightness-90' : 'active:scale-95'} 
-              ${song.isUploading ? 'cursor-wait' : ''}
-              ${song.isRemoving ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}
+              ${(song.isUploading || song.isRemoving) ? 'cursor-wait' : ''}
+              ${song.isRemoving ? 'scale-90 opacity-40 translate-y-4' : 'scale-100 opacity-100'}
             `} 
             onClick={() => handleCardClick(song)}
           >
@@ -52,15 +52,29 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
               <img 
                 src={song.coverUrl} 
                 alt={song.title} 
-                className={`w-full h-full object-cover transform-gpu ${song.isUploading ? 'opacity-50 blur-[2px]' : ''}`}
+                className={`w-full h-full object-cover transform-gpu ${(song.isUploading || song.isRemoving) ? 'opacity-30 blur-[4px]' : ''}`}
                 loading="lazy"
                 style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
               />
               
+              {/* Syncing/Uploading Overlay */}
               {song.isUploading && (
-                <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center space-y-2">
-                   <Loader2 size={32} className="text-white animate-spin" />
-                   <span className="text-[10px] text-white font-bold uppercase tracking-widest">Uploading...</span>
+                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center space-y-2 animate-in fade-in duration-300">
+                   <div className="relative">
+                      <Loader2 size={32} className="text-white animate-spin" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-1 h-1 bg-white rounded-full animate-ping" />
+                      </div>
+                   </div>
+                   <span className="text-[10px] text-white font-black uppercase tracking-[0.2em]">Uploading</span>
+                </div>
+              )}
+
+              {/* Removing/Deleting Overlay */}
+              {song.isRemoving && (
+                <div className="absolute inset-0 bg-apple-accent/20 flex flex-col items-center justify-center space-y-2 animate-in fade-in duration-300">
+                   <RefreshCw size={32} className="text-apple-accent animate-spin" />
+                   <span className="text-[10px] text-apple-accent font-black uppercase tracking-[0.2em]">Deleting</span>
                 </div>
               )}
 
@@ -72,7 +86,7 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
                 </div>
               )}
 
-              {isEditMode && !song.isRemoving && (
+              {isEditMode && !song.isRemoving && !song.isUploading && (
                   <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <button 
                         onClick={(e) => {
@@ -89,13 +103,13 @@ const MusicGrid: React.FC<MusicGridProps> = ({ title, songs, onPlay, isEditMode 
             </div>
 
             <div className="flex flex-col px-0.5">
-              <h3 className={`text-[15px] leading-tight font-semibold line-clamp-1 transition-colors ${song.isUploading ? 'text-gray-400' : 'text-gray-900 group-hover:text-apple-accent'}`}>
+              <h3 className={`text-[15px] leading-tight font-semibold line-clamp-1 transition-colors ${(song.isUploading || song.isRemoving) ? 'text-gray-400' : 'text-gray-900 group-hover:text-apple-accent'}`}>
                 {song.title}
               </h3>
               <p className="text-[14px] leading-tight text-gray-500 mt-1 line-clamp-1">
                 {song.artist}
               </p>
-              {song.description && (
+              {song.description && !song.isRemoving && (
                  <p className="text-[12px] text-gray-400 mt-1.5 line-clamp-2 leading-relaxed">{song.description}</p>
               )}
             </div>
